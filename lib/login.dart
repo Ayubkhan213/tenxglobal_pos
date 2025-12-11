@@ -42,21 +42,6 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // ---------------- STEP 3 UI ----------------
-
-  Widget _listenStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Text(
-          "Agent is ready to receive print jobs",
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 30),
-      ],
-    );
-  }
-
   // ---------------- MAIN UI ----------------
 
   @override
@@ -118,7 +103,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         currentStep: authProvider.currentStep,
                         authenticated: authProvider.isAuthenticated,
                         connected: authProvider.isConnected,
-                        listening: authProvider.isListening,
                       );
                     },
                   ),
@@ -139,59 +123,60 @@ class _LoginScreenState extends State<LoginScreen> {
     return Consumer<LoginProvider>(
       builder: (context, authProvider, _) {
         return Container(
-          padding: const EdgeInsets.all(40),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 20,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: authProvider.currentStep == 0
-              ? AuthStep(
-                  usernameController: authProvider.email,
-                  passwordController: authProvider.password,
-                  apiKeyController: authProvider.apiKey,
-                  loading: authProvider.loading,
-                  authenticated: authProvider.isAuthenticated,
-                  authError: authProvider.authError,
-                )
-              : authProvider.currentStep == 1
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          "Select and connect to a printer",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                          ),
+            padding: const EdgeInsets.all(40),
+            decoration: BoxDecoration(
+              color: Colors.black54,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withValues(
+                      alpha: 0.22), // light shadow for dark backgrounds
+                  blurRadius: 40,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: authProvider.currentStep == 0
+                ? AuthStep(
+                    usernameController: authProvider.email,
+                    passwordController: authProvider.password,
+                    apiKeyController: authProvider.apiKey,
+                    loading: authProvider.loading,
+                    authenticated: authProvider.isAuthenticated,
+                    authError: authProvider.authError,
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        "Select and connect to a printer",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
                         ),
-                        SizedBox(height: 30),
-                        PrinterSelectionWidget(),
-                        SizedBox(height: 10.0),
-                        InkWell(
-                          onTap: () async {
-                            // BusinessInfoBoxService.clearBox();
-                            // ReceiptDialogPreviewer.showReceiptPreview(
-                            //   context: context,
-                            //   orderId: '1',
-                            // );
-                            await PdfReceiptPrinter.previewReceiptDialog(
-                              context: context,
-                              orderResponse: Utils.resApiResponse!,
-                            );
-                          },
-                          child: Container(child: Text('preview')),
-                        ),
-                      ],
-                    )
-                  : _listenStep(),
-        );
+                      ),
+                      SizedBox(height: 30),
+                      PrinterSelectionWidget(),
+                      // SizedBox(height: 10.0),
+                      // InkWell(
+                      //   onTap: () async {
+                      //     // BusinessInfoBoxService.clearBox();
+                      //     // ReceiptDialogPreviewer.showReceiptPreview(
+                      //     //   context: context,
+                      //     //   orderId: '1',
+                      //     // );
+                      //     await PdfReceiptPrinter.previewReceiptDialog(
+                      //       context: context,
+                      //       orderResponse: Utils.resApiResponse!,
+                      //     );
+                      //   },
+                      //   child: Container(child: Text('preview')),
+                      // ),
+                    ],
+                  )
+            // : _listenStep(),
+            );
       },
     );
   }

@@ -92,91 +92,204 @@ class _PrinterSelectionWidgetState extends State<PrinterSelectionWidget> {
 
                   const SizedBox(height: 16),
 
-                  // Customer Printer Dropdown
+                  // Customer Printer Section
                   const Text(
                     "Customer Receipt Printer",
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      isDense: true,
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    value: customerValue,
-                    items: [
-                      const DropdownMenuItem<String>(
-                        value: null,
-                        child: Text("Select Customer Printer"),
-                      ),
-                      // ✅ FIX: Use unique printer list
-                      ...printerList.map(
-                        (p) => DropdownMenuItem(
-                          value: p.url,
-                          child: Text(
-                            "${p.name} • ${p.location ?? 'Unknown'}",
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                    child: Column(
+                      children: [
+                        // None/Clear selection option
+                        RadioListTile<String?>(
+                          title: const Text("None"),
+                          value: null,
+                          groupValue: customerValue,
+                          dense: true,
+                          onChanged: (value) {
+                            provider.selectCustomerPrinter(null);
+                          },
                         ),
-                      ),
-                    ],
-                    onChanged: (url) {
-                      if (url == null) {
-                        provider.selectCustomerPrinter(null);
-                      } else {
-                        final printer = printerList.firstWhere(
-                          (p) => p.url == url,
-                          orElse: () => printerList.first,
-                        );
-                        provider.selectCustomerPrinter(printer);
-                      }
-                    },
+                        const Divider(height: 1),
+                        // Printer options
+                        ...printerList.map((printer) {
+                          return Column(
+                            children: [
+                              RadioListTile<String?>(
+                                title: Text(
+                                  printer.name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                subtitle: Text(
+                                  printer.location ?? 'Unknown location',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                                value: printer.url,
+                                groupValue: customerValue,
+                                dense: true,
+                                onChanged: (value) {
+                                  provider.selectCustomerPrinter(printer);
+                                },
+                              ),
+                              if (printer != printerList.last)
+                                const Divider(height: 1),
+                            ],
+                          );
+                        }).toList(),
+                      ],
+                    ),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
 
-                  // KOT Printer Dropdown
+                  // KOT Printer Section
                   const Text(
                     "Kitchen Order Ticket (KOT) Printer",
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      isDense: true,
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    value: kotValue,
-                    items: [
-                      const DropdownMenuItem<String>(
-                        value: null,
-                        child: Text("Select KOT Printer"),
-                      ),
-                      // ✅ FIX: Use unique printer list
-                      ...printerList.map(
-                        (p) => DropdownMenuItem(
-                          value: p.url,
-                          child: Text(
-                            "${p.name} • ${p.location ?? 'Unknown'}",
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                    child: Column(
+                      children: [
+                        // None/Clear selection option
+                        RadioListTile<String?>(
+                          title: const Text("None"),
+                          value: null,
+                          groupValue: kotValue,
+                          dense: true,
+                          onChanged: (value) {
+                            provider.selectKOTPrinter(null);
+                          },
                         ),
-                      ),
-                    ],
-                    onChanged: (url) {
-                      if (url == null) {
-                        provider.selectKOTPrinter(null);
-                      } else {
-                        final printer = printerList.firstWhere(
-                          (p) => p.url == url,
-                          orElse: () => printerList.first,
-                        );
-                        provider.selectKOTPrinter(printer);
-                      }
-                    },
+                        const Divider(height: 1),
+                        // Printer options
+                        ...printerList.map((printer) {
+                          return Column(
+                            children: [
+                              RadioListTile<String?>(
+                                title: Text(
+                                  printer.name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                subtitle: Text(
+                                  printer.location ?? 'Unknown location',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                                value: printer.url,
+                                groupValue: kotValue,
+                                dense: true,
+                                onChanged: (value) {
+                                  provider.selectKOTPrinter(printer);
+                                },
+                              ),
+                              if (printer != printerList.last)
+                                const Divider(height: 1),
+                            ],
+                          );
+                        }).toList(),
+                      ],
+                    ),
                   ),
 
-                  const SizedBox(height: 16),
+                  // // Customer Printer Dropdown
+                  // const Text(
+                  //   "Customer Receipt Printer",
+                  //   style: TextStyle(fontWeight: FontWeight.bold),
+                  // ),
+                  // const SizedBox(height: 8),
+                  // DropdownButtonFormField<String>(
+                  //   decoration: const InputDecoration(
+                  //     border: OutlineInputBorder(),
+                  //     isDense: true,
+                  //   ),
+                  //   value: customerValue,
+                  //   items: [
+                  //     const DropdownMenuItem<String>(
+                  //       value: null,
+                  //       child: Text("Select Customer Printer"),
+                  //     ),
+                  //     //  FIX: Use unique printer list
+                  //     ...printerList.map(
+                  //       (p) => DropdownMenuItem(
+                  //         value: p.url,
+                  //         child: Text(
+                  //           "${p.name} • ${p.location ?? 'Unknown'}",
+                  //           overflow: TextOverflow.ellipsis,
+                  //         ),
+                  //       ),
+                  //     ),
+                  //   ],
+                  //   onChanged: (url) {
+                  //     if (url == null) {
+                  //       provider.selectCustomerPrinter(null);
+                  //     } else {
+                  //       final printer = printerList.firstWhere(
+                  //         (p) => p.url == url,
+                  //         orElse: () => printerList.first,
+                  //       );
+                  //       provider.selectCustomerPrinter(printer);
+                  //     }
+                  //   },
+                  // ),
+                  // const SizedBox(height: 16),
+                  // // KOT Printer Dropdown
+                  // const Text(
+                  //   "Kitchen Order Ticket (KOT) Printer",
+                  //   style: TextStyle(fontWeight: FontWeight.bold),
+                  // ),
+                  // const SizedBox(height: 8),
+                  // DropdownButtonFormField<String>(
+                  //   decoration: const InputDecoration(
+                  //     border: OutlineInputBorder(),
+                  //     isDense: true,
+                  //   ),
+                  //   value: kotValue,
+                  //   items: [
+                  //     const DropdownMenuItem<String>(
+                  //       value: null,
+                  //       child: Text("Select KOT Printer"),
+                  //     ),
+                  //     // ✅ FIX: Use unique printer list
+                  //     ...printerList.map(
+                  //       (p) => DropdownMenuItem(
+                  //         value: p.url,
+                  //         child: Text(
+                  //           "${p.name} • ${p.location ?? 'Unknown'}",
+                  //           overflow: TextOverflow.ellipsis,
+                  //         ),
+                  //       ),
+                  //     ),
+                  //   ],
+                  //   onChanged: (url) {
+                  //     if (url == null) {
+                  //       provider.selectKOTPrinter(null);
+                  //     } else {
+                  //       final printer = printerList.firstWhere(
+                  //         (p) => p.url == url,
+                  //         orElse: () => printerList.first,
+                  //       );
+                  //       provider.selectKOTPrinter(printer);
+                  //     }
+                  //   },
+                  // ),
+                  // const SizedBox(height: 16),
 
                   // Refresh button with printer count
                   Row(
@@ -207,9 +320,9 @@ class _PrinterSelectionWidgetState extends State<PrinterSelectionWidget> {
                       margin: const EdgeInsets.only(top: 16),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.green.shade50,
+                        color: Colors.green.shade600,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.green.shade200),
+                        border: Border.all(color: Colors.green),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

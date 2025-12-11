@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:network_info_plus/network_info_plus.dart';
@@ -34,9 +33,9 @@ class PrintingAgentProviderMobile extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ============================================================
+  //===========================================================
   // LOAD PRINTERS
-  // ============================================================
+  //===========================================================
   Future<void> loadPrinters() async {
     if (printerBox == null) await _init();
 
@@ -45,7 +44,9 @@ class PrintingAgentProviderMobile extends ChangeNotifier {
 
     try {
       debugPrint("📱 Scanning mobile printers...");
+
       final printers = await getMobileNetworkPrinters();
+
       debugPrint('============ Printers Found ==============');
       debugPrint('Total: ${printers.length}');
       for (var p in printers) {
@@ -55,7 +56,7 @@ class PrintingAgentProviderMobile extends ChangeNotifier {
 
       availablePrinters = printers;
 
-      // Restore saved printers
+      // Restore saved printer mapping
       if (customerPrinter != null) {
         customerPrinter = availablePrinters.firstWhere(
           (p) => p.url == customerPrinter!.url,
@@ -71,19 +72,17 @@ class PrintingAgentProviderMobile extends ChangeNotifier {
       }
 
       debugPrint("✅ Loaded printers: ${availablePrinters.length}");
-    } catch (e, stackTrace) {
+    } catch (e) {
       debugPrint("❌ Error loading printers: $e");
-      debugPrint("Stack trace: $stackTrace");
-      availablePrinters = [];
     }
 
     isLoading = false;
     notifyListeners();
   }
 
-  // ============================================================
-  // SELECT PRINTER
-  // ============================================================
+  //===========================================================
+  // SAVE PRINTERS
+  //===========================================================
   Future<void> selectCustomerPrinter(Printer? printer) async {
     customerPrinter = printer;
     if (printer == null) {
@@ -104,165 +103,122 @@ class PrintingAgentProviderMobile extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ============================================================
-  // NETWORK SCAN - IMPROVED
-  // ============================================================
+  //===========================================================
+  // NETWORK SCAN (🔥 OPTIMIZED)
+  //===========================================================
   Future<List<Printer>> getMobileNetworkPrinters() async {
     List<Printer> found = [];
 
     try {
-      final ip = await _getLocalIpAddress();
+      String ip = await _getLocalIpAddress();
       debugPrint("📍 Local IP: $ip");
 
-      if (ip == "0.0.0.0" || ip.isEmpty) {
-        debugPrint("❌ No local IP found");
-        return [];
-      }
+      if (ip.isEmpty || ip == "0.0.0.0") return [];
 
       final parts = ip.split(".");
-      if (parts.length != 4) {
-        debugPrint("❌ Invalid IP format: $ip");
-        return [];
-      }
-
       final prefix = "${parts[0]}.${parts[1]}.${parts[2]}";
-      debugPrint("🔍 Scanning network: $prefix.1-254");
 
-      // Common printer ports
-      List<int> ports = [9100, 631, 515];
+      debugPrint("🔍 Starting scan on $prefix.1 - $prefix.254");
 
-      // ✅ FIXED: Scan full range 1-254
-      List<Future<Printer?>> scans = [];
+      // 1️⃣ QUICK DIRECT CHECK FIRST
+      final directIp = "$prefix.200";
+      final directPrinter = await _pingPrinter(directIp, 9100);
 
-      // Scan entire subnet (1-254)
-      for (int i = 1; i <= 254; i++) {
-        final target = "$prefix.$i";
-        for (final port in ports) {
-          scans.add(_pingPrinter(target, port));
-        }
+      if (directPrinter != null) {
+        debugPrint("🎯 Direct printer found: $directIp");
+        found.add(directPrinter);
+
+        // ⚡ RETURN INSTANTLY — NO FULL SCAN
+        return found;
       }
 
-      debugPrint("⏳ Scanning ${scans.length} possible printer addresses...");
-
-      final results = await Future.wait(scans);
+      // 2️⃣ Only scan subnet if direct search failed
+      final results = await compute(_scanSubnet, prefix);
 
       for (final p in results) {
-        if (p != null) {
-          found.add(p);
-          debugPrint("✅ Found printer: ${p.url}");
-        }
+        if (p != null) found.add(p);
       }
 
-      debugPrint("🎉 Scan complete. Found ${found.length} printers");
-    } catch (e, stackTrace) {
-      debugPrint("❌ Network scan error: $e");
-      debugPrint("Stack trace: $stackTrace");
+      debugPrint("🎉 Scan complete. Found: ${found.length}");
+    } catch (e) {
+      debugPrint("❌ Scan error: $e");
     }
 
     return found;
   }
 
-  Future<Printer?> _pingPrinter(String ip, int port) async {
+  //===========================================================
+  // ISOLATE SCAN FUNCTION
+  //===========================================================
+  static Future<List<Printer?>> _scanSubnet(String prefix) async {
+    List<Printer?> results = [];
+
+    for (int i = 1; i <= 254; i++) {
+      final ip = "$prefix.$i";
+      final printer = await _trySocket(ip, 9100);
+      if (printer != null) results.add(printer);
+    }
+
+    return results;
+  }
+
+  //===========================================================
+  // SOCKET CHECK (used by isolate)
+  //===========================================================
+  static Future<Printer?> _trySocket(String ip, int port) async {
     try {
-      final socket = await Socket.connect(
-        ip,
-        port,
-        timeout: const Duration(
-            milliseconds: 500), // Reduced timeout for faster scanning
-      );
-
+      final socket = await Socket.connect(ip, port,
+          timeout: const Duration(milliseconds: 300));
       await socket.close();
-
-      debugPrint("✅ Printer found at $ip:$port");
 
       return Printer(
         name: "Printer $ip",
         url: "$ip:$port",
         location: ip,
-        model: "Network Printer (Port $port)",
-        isDefault: false,
+        model: "Network Printer",
         isAvailable: true,
+        isDefault: false,
       );
     } catch (_) {
-      // Silent fail for faster scanning
       return null;
     }
   }
 
-  Future<String> _getLocalIpAddress() async {
+  //===========================================================
+  // DIRECT TEST FUNCTION
+  //===========================================================
+  Future<Printer?> _pingPrinter(String ip, int port) async {
     try {
-      final info = NetworkInfo();
-
-      // Try WiFi first
-      final wifiIP = await info.getWifiIP();
-      if (wifiIP != null && wifiIP.isNotEmpty && wifiIP != "0.0.0.0") {
-        debugPrint("✅ WiFi IP: $wifiIP");
-        return wifiIP;
-      }
-
-      // Try getting from network interfaces as fallback
-      final interfaces = await NetworkInterface.list();
-      for (var interface in interfaces) {
-        final name = interface.name.toLowerCase();
-
-        // Look for WiFi or Ethernet
-        if (name.contains('wlan') ||
-            name.contains('wifi') ||
-            name.contains('eth') ||
-            name.contains('en0')) {
-          for (var addr in interface.addresses) {
-            if (addr.type == InternetAddressType.IPv4 &&
-                !addr.address.startsWith('127') &&
-                !addr.address.startsWith('169.254')) {
-              debugPrint("✅ Network IP: ${addr.address} (${interface.name})");
-              return addr.address;
-            }
-          }
-        }
-      }
-
-      debugPrint("⚠️ No valid IP found");
-    } catch (e) {
-      debugPrint("❌ Error getting IP: $e");
-    }
-
-    return "0.0.0.0";
-  }
-
-  // ============================================================
-  // MANUAL PRINTER ADD (NEW - for testing specific IPs)
-  // ============================================================
-  Future<void> testSpecificPrinter(String ip, int port) async {
-    debugPrint("🔍 Testing printer at $ip:$port");
-
-    try {
-      final socket = await Socket.connect(
-        ip,
-        port,
-        timeout: const Duration(seconds: 3),
-      );
-
+      final socket = await Socket.connect(ip, port,
+          timeout: const Duration(milliseconds: 400));
       await socket.close();
 
-      debugPrint("✅ Printer is reachable at $ip:$port");
-
-      final printer = Printer(
+      return Printer(
         name: "Printer $ip",
         url: "$ip:$port",
         location: ip,
-        model: "Network Printer (Port $port)",
-        isDefault: false,
+        model: "Network Printer",
         isAvailable: true,
+        isDefault: false,
       );
-
-      // Add to list if not already present
-      if (!availablePrinters.any((p) => p.url == printer.url)) {
-        availablePrinters.add(printer);
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint("❌ Cannot reach printer at $ip:$port - $e");
-      rethrow;
+    } catch (_) {
+      return null;
     }
+  }
+
+  //===========================================================
+  // GET LOCAL IP
+  //===========================================================
+  Future<String> _getLocalIpAddress() async {
+    try {
+      final info = NetworkInfo();
+      final wifiIP = await info.getWifiIP();
+
+      if (wifiIP != null && wifiIP.isNotEmpty) {
+        return wifiIP;
+      }
+    } catch (_) {}
+
+    return "0.0.0.0";
   }
 }
