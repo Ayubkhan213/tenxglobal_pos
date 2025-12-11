@@ -32,109 +32,112 @@ class AuthStep extends StatefulWidget {
 class _AuthStepState extends State<AuthStep> {
   @override
   Widget build(BuildContext context) {
-    return Form(
-      key: Provider.of<LoginProvider>(context, listen: false).formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            "Enter your credentials",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 30),
+    return Container(
+      decoration: BoxDecoration(color: Colors.black12),
+      child: Form(
+        key: Provider.of<LoginProvider>(context, listen: false).formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              "Enter your credentials",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 30),
 
-          // Username
-          FormTextField(
-            controller: widget.usernameController,
-            label: "Email",
-            icon: Icons.person_outline,
-            validator: (v) {
-              if (v == null || v.trim().isEmpty) {
-                return "Please enter your email";
-              }
+            // Username
+            FormTextField(
+              controller: widget.usernameController,
+              label: "Email",
+              icon: Icons.person_outline,
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) {
+                  return "Please enter your email";
+                }
 
-              // Simple email pattern
-              final emailRegExp = RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$");
+                // Simple email pattern
+                final emailRegExp = RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$");
 
-              if (!emailRegExp.hasMatch(v.trim())) {
-                return "Please enter a valid email";
-              }
+                if (!emailRegExp.hasMatch(v.trim())) {
+                  return "Please enter a valid email";
+                }
 
-              return null;
-            },
-          ),
-          const SizedBox(height: 5),
+                return null;
+              },
+            ),
+            const SizedBox(height: 5),
 
-          // Password
-          Consumer<LoginProvider>(
-            builder: (context, authProvider, _) {
-              return FormTextField(
-                controller: widget.passwordController,
-                label: "Password",
-                icon: Icons.lock_outline,
-                obscureText: authProvider.hidePassword,
-                validator: (v) => v!.isEmpty ? "Enter password" : null,
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    authProvider.hidePassword
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
+            // Password
+            Consumer<LoginProvider>(
+              builder: (context, authProvider, _) {
+                return FormTextField(
+                  controller: widget.passwordController,
+                  label: "Password",
+                  icon: Icons.lock_outline,
+                  obscureText: authProvider.hidePassword,
+                  validator: (v) => v!.isEmpty ? "Enter password" : null,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      authProvider.hidePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                    ),
+                    onPressed: authProvider.togglePassword,
                   ),
-                  onPressed: authProvider.togglePassword,
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 5),
+                );
+              },
+            ),
+            const SizedBox(height: 5),
 
-          // // API Key
-          // FormTextField(
-          //   controller: widget.apiKeyController,
-          //   label: "API Key",
-          //   icon: Icons.vpn_key_outlined,
-          //   validator: (v) => v!.isEmpty ? "Enter API key" : null,
-          // ),
+            // // API Key
+            // FormTextField(
+            //   controller: widget.apiKeyController,
+            //   label: "API Key",
+            //   icon: Icons.vpn_key_outlined,
+            //   validator: (v) => v!.isEmpty ? "Enter API key" : null,
+            // ),
 
-          // Error message
-          if (widget.authError != null) ...[
-            const SizedBox(height: 16),
-            _errorBox(widget.authError!),
-          ],
+            // Error message
+            if (widget.authError != null) ...[
+              const SizedBox(height: 16),
+              _errorBox(widget.authError!),
+            ],
 
-          // Success message
-          if (widget.authenticated) ...[
-            const SizedBox(height: 16),
-            _successBox("Authentication successful"),
-          ],
+            // Success message
+            if (widget.authenticated) ...[
+              const SizedBox(height: 16),
+              _successBox("Authentication successful"),
+            ],
 
-          const SizedBox(height: 30),
+            const SizedBox(height: 30),
 
-          Consumer<LoginProvider>(
-            builder: (context, authProvider, _) {
-              return ElevatedButton(
-                onPressed: authProvider.loading
-                    ? null
-                    : () {
-                        authProvider.authenticate();
-                      },
-                style: _btnStyle(),
-                child: authProvider.loading
-                    ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(strokeWidth: 3),
-                      )
-                    : const Text(
-                        "Authenticate",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+            Consumer<LoginProvider>(
+              builder: (context, authProvider, _) {
+                return ElevatedButton(
+                  onPressed: authProvider.loading
+                      ? null
+                      : () {
+                          authProvider.authenticate();
+                        },
+                  style: _btnStyle(),
+                  child: authProvider.loading
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(strokeWidth: 3),
+                        )
+                      : const Text(
+                          "Authenticate",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-              );
-            },
-          ),
-        ],
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
