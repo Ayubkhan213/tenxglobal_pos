@@ -1,6 +1,9 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:image/image.dart' as img;
+import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:provider/provider.dart';
 import 'package:tenxglobal_pos/models/order_response_model.dart';
@@ -79,13 +82,13 @@ class ReceiptPrinterMobile {
       final paperWidth = _detectPaperWidth(provider.kotPrinter!.name);
       debugPrint("🖨️  Detected KOT paper width: $paperWidth chars");
 
-      final data = _generateKOTData(
+      final data = await _generateKOTData(
+        // Add await here
         orderId: orderId,
         orderType: orderType,
         items: items,
         paperWidth: paperWidth,
       );
-
       await _sendToPrinter(ip, port, data);
 
       _showMessage(context, "✅ KOT printed successfully", Colors.green);
@@ -173,15 +176,61 @@ class ReceiptPrinterMobile {
   ///======================================================
   /// GENERATE KOT ESC/POS DATA - ADAPTIVE WIDTH
   ///======================================================
-  static Uint8List _generateKOTData({
+  static Future<Uint8List> _generateKOTData({
     required String orderId,
     String orderType = '',
     List<OrderItem>? items,
     int paperWidth = _width80mm,
-  }) {
+  }) async {
+    final businessInfo = await BusinessInfoBoxService.getBusinessInfo();
     final buffer = BytesBuilder();
 
-    buffer.add(_escInit);
+    // Remove top margin
+    buffer.add([0x1B, 0x32]);
+
+    // ============================================================
+    // =============== PRINT LOGO AT START =========================
+    // ============================================================
+    if (businessInfo?.business.logoUrl != null &&
+        businessInfo!.business.logoUrl!.trim().isNotEmpty) {
+      try {
+        // Load image from URL
+        final ByteData imgBytes = await NetworkAssetBundle(
+          Uri.parse(businessInfo.business.logoUrl!),
+        ).load("");
+
+        final Uint8List imageData = imgBytes.buffer.asUint8List();
+
+        // Decode image
+        final img.Image? decodedImg = img.decodeImage(imageData);
+
+        if (decodedImg != null) {
+          // Resize logo
+          final img.Image resized = img.copyResize(
+            decodedImg,
+            width: 150,
+            height: null,
+          );
+
+          final Generator generator = Generator(
+            paperWidth == _width80mm ? PaperSize.mm80 : PaperSize.mm58,
+            await CapabilityProfile.load(),
+          );
+
+          // Convert resized image to ESC/POS
+          final List<int> bytes = generator.image(resized);
+
+          buffer.add(bytes);
+          buffer.add(generator.reset());
+        }
+      } catch (e) {
+        debugPrint("Logo loading failed: $e");
+      }
+    }
+
+    // ============================================================
+    // ================= KITCHEN ORDER HEADER ======================
+    // ============================================================
 
     // Header
     buffer.add(_escAlignCenter);
@@ -215,7 +264,10 @@ class ReceiptPrinterMobile {
     buffer.add(_encode(_dashes(paperWidth)));
     buffer.add(_newLine());
 
-    // Items
+    // ============================================================
+    // ================= ITEMS =====================================
+    // ============================================================
+
     buffer.add(_escAlignLeft);
     if (items != null && items.isNotEmpty) {
       for (var item in items) {
@@ -253,7 +305,10 @@ class ReceiptPrinterMobile {
     buffer.add(_newLine());
     buffer.add(_newLine());
 
-    // Footer
+    // ============================================================
+    // ================= FOOTER ====================================
+    // ============================================================
+
     buffer.add(_escAlignCenter);
     buffer.add(_encode('Thank You!'));
     buffer.add(_newLine());
@@ -275,25 +330,62 @@ class ReceiptPrinterMobile {
     final order = orderResponse.order;
     final buffer = BytesBuilder();
 
-    buffer.add(_escInit);
+    //buffer.add(_escInit);
+    buffer.add([0x1B, 0x32]);
+    // ============================================================
+    // =============== PRINT LOGO AT START =========================
+    // ============================================================
+    if (businessInfo?.business.logoUrl != null &&
+        businessInfo!.business.logoUrl!.trim().isNotEmpty) {
+      try {
+        // Load image from URL
+        final ByteData imgBytes = await NetworkAssetBundle(
+          Uri.parse(businessInfo.business.logoUrl!),
+        ).load("");
 
-    // Add some blank lines at the top to prevent cutoff
-    buffer.add(_newLine());
-    buffer.add(_newLine());
+        final Uint8List imageData = imgBytes.buffer.asUint8List();
 
-    // ========== BUSINESS HEADER (CENTERED) ==========
+        // Decode image
+        final img.Image? decodedImg = img.decodeImage(imageData);
+
+        if (decodedImg != null) {
+          // 🔥 Resize logo (WIDTH = 150px for small logo)
+          final img.Image resized = img.copyResize(
+            decodedImg,
+            width: 150, // change to 120 / 100 if you want even smaller
+            height: null,
+          );
+
+          final Generator generator = Generator(
+            paperWidth == _width80mm ? PaperSize.mm80 : PaperSize.mm58,
+            await CapabilityProfile.load(),
+          );
+
+          // Convert resized image to ESC/POS
+          final List<int> bytes = generator.image(resized);
+
+          buffer.add(bytes);
+          buffer.add(generator.reset());
+        }
+      } catch (e) {
+        debugPrint("Logo loading failed: $e");
+      }
+    }
+
+    // ============================================================
+    // ================= BUSINESS HEADER ===========================
+    // ============================================================
+
     buffer.add(_escAlignCenter);
 
-    // Business Name (Large & Bold)
-    if (paperWidth >= _width58mm) {
-      buffer.add(_escSizeLarge);
-    } else {
-      buffer.add(_escSizeNormal);
-    }
+    // Business Name (Bold)
+    buffer.add(paperWidth >= _width58mm ? _escSizeLarge : _escSizeNormal);
     buffer.add(_escBold);
+
     final businessName = businessInfo?.business.businessName ?? 'BUSINESS NAME';
     buffer.add(_encode(_truncate(businessName, paperWidth)));
     buffer.add(_newLine());
+
     buffer.add(_escSizeNormal);
     buffer.add(_escBoldOff);
 
@@ -304,66 +396,96 @@ class ReceiptPrinterMobile {
     // Phone
     if (businessInfo?.business.phone != null) {
       buffer.add(_encode(
-          _truncate('Tel: ${businessInfo!.business.phone}', paperWidth)));
+        _truncate('Tel: ${businessInfo!.business.phone}', paperWidth),
+      ));
       buffer.add(_newLine());
     }
 
     // Date
-    buffer.add(_encode(
-        'Date: ${intl.DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}'));
-    buffer.add(_newLine());
+    buffer.add(
+      _encode(
+        'Date: ${intl.DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
+      ),
+    );
     buffer.add(_newLine());
 
-    // Dotted border
     buffer.add(_encode(_dots(paperWidth)));
     buffer.add(_newLine());
 
-    // ========== ORDER DETAILS (LEFT ALIGNED) ==========
+    // ============================================================
+    // ================= ORDER DETAILS =============================
+    // ============================================================
+
     buffer.add(_escAlignLeft);
 
-    // Payment Type with right-aligned value
-    final paymentType = order?.paymentMethod ?? 'Cash';
-    buffer.add(_encode(
-        _formatLabelValueRight('Payment Type:', paymentType, paperWidth)));
-    buffer.add(_newLine());
-
-    // Order Type with right-aligned value
-    final orderType = order?.orderType ?? 'Eatin';
+    // Payment Type
     buffer.add(
-        _encode(_formatLabelValueRight('Order Type:', orderType, paperWidth)));
+      _encode(
+        _formatLabelValueRight(
+          'Payment Type:',
+          order?.paymentMethod ?? 'Cash',
+          paperWidth,
+        ),
+      ),
+    );
     buffer.add(_newLine());
 
-    // Customer Name with right-aligned value
-    final customerName = order?.customerName ?? 'Eat in';
-    buffer.add(_encode(
-        _formatLabelValueRight('Customer Name:', customerName, paperWidth)));
+    // Order Type
+    buffer.add(
+      _encode(
+        _formatLabelValueRight(
+          'Order Type:',
+          order?.orderType ?? 'Eatin',
+          paperWidth,
+        ),
+      ),
+    );
     buffer.add(_newLine());
 
-    // Contact Number (if present) with right-aligned value
+    // Customer Name
+    buffer.add(
+      _encode(
+        _formatLabelValueRight(
+          'Customer Name:',
+          order?.customerName ?? 'Eat in',
+          paperWidth,
+        ),
+      ),
+    );
+
+    // Phone Number (optional)
     if (order?.phoneNumber != null && order!.phoneNumber!.trim().isNotEmpty) {
-      buffer.add(_encode(_formatLabelValueRight(
-          'Contact Number:', order.phoneNumber!, paperWidth)));
+      buffer.add(
+        _encode(
+          _formatLabelValueRight(
+            'Contact Number:',
+            order.phoneNumber!,
+            paperWidth,
+          ),
+        ),
+      );
       buffer.add(_newLine());
     }
 
     buffer.add(_newLine());
     buffer.add(_encode(_dots(paperWidth)));
     buffer.add(_newLine());
-    buffer.add(_newLine());
 
-    // ========== ITEMS TABLE HEADER ==========
+    // ============================================================
+    // ================= ITEMS TABLE ===============================
+    // ============================================================
+
     buffer.add(_escAlignLeft);
 
-    // Column widths
-    final itemColWidth = paperWidth - 18; // Item name takes most space
+    final itemColWidth = paperWidth - 18;
     final qtyColWidth = 8;
     final priceColWidth = 10;
 
-    // Header row (Bold)
     buffer.add(_escBold);
     final headerLine = _padRight('Item', itemColWidth) +
         _padCenter('Qty', qtyColWidth) +
         _padLeft('Price', priceColWidth);
+
     buffer.add(_encode(headerLine));
     buffer.add(_newLine());
     buffer.add(_escBoldOff);
@@ -378,6 +500,7 @@ class ReceiptPrinterMobile {
         final itemLine = _padRight(name, itemColWidth) +
             _padCenter(qty, qtyColWidth) +
             _padLeft(price, priceColWidth);
+
         buffer.add(_encode(itemLine));
         buffer.add(_newLine());
       }
@@ -387,7 +510,10 @@ class ReceiptPrinterMobile {
     buffer.add(_newLine());
     buffer.add(_newLine());
 
-    // ========== TOTALS SECTION (RIGHT ALIGNED VALUES) ==========
+    // ============================================================
+    // ================= TOTALS ===================================
+    // ============================================================
+
     buffer.add(_escAlignLeft);
 
     final subtotal = order?.subTotal ?? 0;
@@ -397,43 +523,79 @@ class ReceiptPrinterMobile {
     final deliveryCharges = order?.deliveryCharges ?? 0;
     final total = order?.totalAmount ?? 0;
 
-    // Subtotal
-    buffer.add(_encode(_formatLabelValueRight(
-        'Subtotal:', '£${subtotal.toStringAsFixed(2)}', paperWidth)));
+    buffer.add(
+      _encode(
+        _formatLabelValueRight(
+          'Subtotal:',
+          '£${subtotal.toStringAsFixed(2)}',
+          paperWidth,
+        ),
+      ),
+    );
     buffer.add(_newLine());
 
-    // Approved Discount (if applicable)
     if (approvedDiscount > 0) {
-      buffer.add(_encode(_formatLabelValueRight('Discount:',
-          '-£${approvedDiscount.toStringAsFixed(2)}', paperWidth)));
+      buffer.add(
+        _encode(
+          _formatLabelValueRight(
+            'Discount:',
+            '-£${approvedDiscount.toStringAsFixed(2)}',
+            paperWidth,
+          ),
+        ),
+      );
       buffer.add(_newLine());
     }
 
-    // Sales Discount (if applicable)
     if (salesDiscount > 0) {
-      buffer.add(_encode(_formatLabelValueRight(
-          'Sale:', '-£${salesDiscount.toStringAsFixed(2)}', paperWidth)));
+      buffer.add(
+        _encode(
+          _formatLabelValueRight(
+            'Sale:',
+            '-£${salesDiscount.toStringAsFixed(2)}',
+            paperWidth,
+          ),
+        ),
+      );
       buffer.add(_newLine());
     }
 
-    // Promo Discount (if applicable)
     if (promoDiscount > 0) {
-      buffer.add(_encode(_formatLabelValueRight('Promo Discount:',
-          '-£${promoDiscount.toStringAsFixed(2)}', paperWidth)));
+      buffer.add(
+        _encode(
+          _formatLabelValueRight(
+            'Promo Discount:',
+            '-£${promoDiscount.toStringAsFixed(2)}',
+            paperWidth,
+          ),
+        ),
+      );
       buffer.add(_newLine());
     }
 
-    // Delivery Charges (if applicable)
     if (orderResponse.type == 'Delivery' && deliveryCharges > 0) {
-      buffer.add(_encode(_formatLabelValueRight('Delivery Charges:',
-          '${deliveryCharges.toStringAsFixed(0)}%', paperWidth)));
+      buffer.add(
+        _encode(
+          _formatLabelValueRight(
+            'Delivery Charges:',
+            '${deliveryCharges.toStringAsFixed(0)}%',
+            paperWidth,
+          ),
+        ),
+      );
       buffer.add(_newLine());
     }
 
-    // Total Price (Bold)
     buffer.add(_escBold);
-    buffer.add(_encode(_formatLabelValueRight(
-        'Total Price:', '£${total.toStringAsFixed(2)}', paperWidth)));
+    buffer.add(
+      _encode(
+        _formatLabelValueRight(
+          'Total Price:',
+          '£${total.toStringAsFixed(2)}',
+          paperWidth,
+        ),
+      ),
+    );
     buffer.add(_escBoldOff);
     buffer.add(_newLine());
 
@@ -441,23 +603,23 @@ class ReceiptPrinterMobile {
     buffer.add(_newLine());
     buffer.add(_newLine());
 
-    // ========== FOOTER (CENTERED) ==========
+    // ============================================================
+    // ================= FOOTER ===================================
+    // ============================================================
+
     buffer.add(_escAlignCenter);
 
-    // Email
     if (businessInfo?.user.email != null &&
         businessInfo!.user.email!.isNotEmpty) {
-      buffer.add(
-          _encode(_truncate('Email: ${businessInfo.user.email}', paperWidth)));
+      buffer.add(_encode('Email: ${businessInfo.user.email}'));
       buffer.add(_newLine());
     }
 
-    // Location
-    if (businessInfo?.business.address != null &&
-        businessInfo!.business.address.isNotEmpty) {
-      final addressLines =
+    if (businessInfo!.business.address.isNotEmpty) {
+      final lines =
           _wrapText('Location: ${businessInfo.business.address}', paperWidth);
-      for (var line in addressLines) {
+
+      for (var line in lines) {
         buffer.add(_encode(line));
         buffer.add(_newLine());
       }
@@ -468,7 +630,6 @@ class ReceiptPrinterMobile {
     buffer.add(_newLine());
     buffer.add(_newLine());
 
-    // Feed and cut
     buffer.add(_escFeedLines);
     buffer.add(_escCut);
 

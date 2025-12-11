@@ -439,7 +439,7 @@ class PdfReceiptPrinter {
     final businessInfo = await BusinessInfoBoxService.getBusinessInfo();
     final order = orderResponse.order;
     final pdf = pw.Document();
-
+    print("bussiness logo url ${businessInfo?.business.logoUrl}");
     final logo = await getBWLogo(businessInfo?.business.logoUrl);
     final font = await pw.Font.helvetica();
     final boldFont = await pw.Font.helveticaBold();
@@ -464,14 +464,24 @@ class PdfReceiptPrinter {
 
     pdf.addPage(
       pw.Page(
-        pageFormat: _getPdfFormat(paperWidthMM),
+        pageFormat: const PdfPageFormat(
+          72 * PdfPageFormat.mm,
+          double.infinity,
+        ),
         margin: const pw.EdgeInsets.all(8),
         build: (context) {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               if (businessInfo?.business.logoUrl != null)
-                pw.Center(child: pw.Image(logo!, width: 40, height: 40)),
+                pw.Center(
+                    child: pw.Text(
+                  '${'businessInfo?.business.logoUrl'}',
+                  style: pw.TextStyle(
+                    font: boldFont,
+                    fontSize: titleSize,
+                  ),
+                )),
               pw.SizedBox(height: 5),
               // ========== BUSINESS HEADER ==========
               pw.Center(
