@@ -1,0 +1,47 @@
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+
+void startServerTask() {
+  FlutterForegroundTask.init(
+    androidNotificationOptions: AndroidNotificationOptions(
+      channelId: 'print_service',
+      channelName: 'Printing Service',
+      channelDescription: 'Handles print requests in background',
+      channelImportance: NotificationChannelImportance.LOW,
+      priority: NotificationPriority.LOW,
+      iconData: const NotificationIconData(
+        resType: ResourceType.mipmap,
+        resPrefix: ResourcePrefix.ic,
+        name: 'launcher',
+      ),
+    ),
+    iosNotificationOptions: const IOSNotificationOptions(),
+  );
+
+  FlutterForegroundTask.startService(
+    notificationTitle: 'Printing Service',
+    notificationText: 'Waiting for print requests...',
+    callback: startServerInBackground,
+  );
+}
+
+@pragma('vm:entry-point')
+void startServerInBackground() {
+  FlutterForegroundTask.setTaskHandler(MyServerTaskHandler());
+}
+
+class MyServerTaskHandler extends TaskHandler {
+  @override
+  Future<void> onStart(DateTime timestamp, SendPort? sendPort) async {
+    // Start your local server here
+    final context = MyApp.navigatorKey.currentContext;
+    if (context != null) {
+      startLocalServer(context); // your existing server function
+    }
+  }
+
+  @override
+  Future<void> onEvent(DateTime timestamp, SendPort? sendPort) async {}
+
+  @override
+  Future<void> onDestroy(DateTime timestamp, SendPort? sendPort) async {}
+}
