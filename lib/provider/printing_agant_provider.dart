@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:network_info_plus/network_info_plus.dart';
+import 'package:tenxglobal_pos/core/services/hive_services/printer_box_service.dart';
 import 'package:tenxglobal_pos/models/printer_model.dart';
 
 class PrintingAgentProviderMobile extends ChangeNotifier {
@@ -72,6 +73,14 @@ class PrintingAgentProviderMobile extends ChangeNotifier {
       }
 
       debugPrint("✅ Loaded printers: ${availablePrinters.length}");
+      if (availablePrinters.isEmpty) {
+        print('----------- Empty ------------');
+        availablePrinters.clear();
+
+        selectCustomerPrinter(null);
+
+        // PrinterBoxService.clearBox();
+      }
     } catch (e) {
       debugPrint("❌ Error loading printers: $e");
     }
@@ -103,9 +112,6 @@ class PrintingAgentProviderMobile extends ChangeNotifier {
     notifyListeners();
   }
 
-  //===========================================================
-  // NETWORK SCAN (🔥 OPTIMIZED)
-  //===========================================================
   Future<List<Printer>> getMobileNetworkPrinters() async {
     List<Printer> found = [];
 
@@ -118,28 +124,34 @@ class PrintingAgentProviderMobile extends ChangeNotifier {
       final parts = ip.split(".");
       final prefix = "${parts[0]}.${parts[1]}.${parts[2]}";
 
-      debugPrint("🔍 Starting scan on $prefix.1 - $prefix.254");
+      debugPrint("🔍 Starting priority scan on $prefix.*");
 
-      // 1️⃣ QUICK DIRECT CHECK FIRST
-      final directIp = "$prefix.200";
-      final directPrinter = await _pingPrinter(directIp, 9100);
+      // 1️⃣ PRIORITY CHECK - Most common printer IPs
+      final priorityIPs = [200, 100, 192, 201, 254, 1, 150, 50];
 
-      if (directPrinter != null) {
-        debugPrint("🎯 Direct printer found: $directIp");
-        found.add(directPrinter);
+      for (final lastOctet in priorityIPs) {
+        final testIp = "$prefix.$lastOctet";
+        final printer = await _pingPrinter(testIp, 9100);
 
-        // ⚡ RETURN INSTANTLY — NO FULL SCAN
-        return found;
+        if (printer != null) {
+          debugPrint("🎯 Printer found at priority IP: $testIp");
+          found.add(printer);
+
+          // ⚡ RETURN INSTANTLY — Found a printer
+          return found;
+        }
       }
 
-      // 2️⃣ Only scan subnet if direct search failed
-      final results = await compute(_scanSubnet, prefix);
+      debugPrint("⚠️ No printer at priority IPs. Starting full scan...");
 
-      for (final p in results) {
-        if (p != null) found.add(p);
-      }
+      // // 2️⃣ FULL SUBNET SCAN - Only if priority check failed
+      // final results = await compute(_scanSubnet, prefix);
 
-      debugPrint("🎉 Scan complete. Found: ${found.length}");
+      // for (final p in results) {
+      //   if (p != null) found.add(p);
+      // }
+
+      // debugPrint("🎉 Scan complete. Found: ${found.length}");
     } catch (e) {
       debugPrint("❌ Scan error: $e");
     }
