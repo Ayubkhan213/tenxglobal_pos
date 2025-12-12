@@ -65,10 +65,11 @@ void startLocalServer(BuildContext context) async {
           var data = jsonDecode(body);
 
           var res = OrderResponse.fromJson(data);
-          print('----------------');
+          print(
+              '###########################################################################');
           Utils.resApiResponse = res;
 
-          print(res);
+          print(data);
 
           // Validate required fields
           if (res.order == null) {
@@ -90,10 +91,11 @@ void startLocalServer(BuildContext context) async {
           // ========================================
           if (res.type == 'customer') {
             try {
-              await ReceiptPrinterMobile.printReceipt(
-                context: context,
-                orderResponse: res,
-              );
+              await ReceiptPrinterMobile.printKOT(
+                  context: context,
+                  orderId: res.order!.id.toString(),
+                  items: res.order?.items,
+                  orderType: res.order!.orderType.toString());
               successMessages.add(
                 'Customer receipt printed successfully on ""',
               );
