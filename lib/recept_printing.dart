@@ -181,6 +181,9 @@ class ReceiptPrinterMobile {
     String orderType = '',
     List<OrderItem>? items,
     int paperWidth = _width80mm,
+    String? customerName,
+    String? phoneNumber,
+    String? paymentMethod,
   }) async {
     final businessInfo = await BusinessInfoBoxService.getBusinessInfo();
     final buffer = BytesBuilder();
@@ -188,105 +191,114 @@ class ReceiptPrinterMobile {
     // Remove top margin
     buffer.add([0x1B, 0x32]);
 
-    // ============================================================
-    // =============== PRINT LOGO AT START =========================
-    // ============================================================
-    if (businessInfo?.business.logoUrl != null &&
-        businessInfo!.business.logoUrl!.trim().isNotEmpty) {
-      try {
-        // Load image from URL
-        final ByteData imgBytes = await NetworkAssetBundle(
-          Uri.parse(businessInfo.business.logoUrl!),
-        ).load("");
-
-        final Uint8List imageData = imgBytes.buffer.asUint8List();
-
-        // Decode image
-        final img.Image? decodedImg = img.decodeImage(imageData);
-
-        if (decodedImg != null) {
-          // Resize logo
-          final img.Image resized = img.copyResize(
-            decodedImg,
-            width: 150,
-            height: null,
-          );
-
-          final Generator generator = Generator(
-            paperWidth == _width80mm ? PaperSize.mm80 : PaperSize.mm58,
-            await CapabilityProfile.load(),
-          );
-
-          // Convert resized image to ESC/POS
-          final List<int> bytes = generator.image(resized);
-
-          buffer.add(bytes);
-          buffer.add(generator.reset());
-        }
-      } catch (e) {
-        debugPrint("Logo loading failed: $e");
-      }
-    }
-
-    // ============================================================
-    // ================= KITCHEN ORDER HEADER ======================
-    // ============================================================
-
-    // Header
     buffer.add(_escAlignCenter);
-    if (paperWidth >= _width58mm) {
-      buffer.add(_escSizeDouble);
-    } else {
-      buffer.add(_escSizeLarge); // Smaller for 52mm
-    }
+
+    buffer.add(_escSizeLarge);
+    buffer.add(
+        _encode(orderType.isNotEmpty ? orderType.toUpperCase() : 'EAT IN'));
+    buffer.add(_newLine());
+
+    buffer.add(_escSizeNormal);
+    buffer.add(_escBoldOff);
+
+    buffer.add(_escSizeDouble);
     buffer.add(_escBold);
-    buffer.add(_encode('KITCHEN ORDER'));
+    buffer.add(_encode(orderId));
     buffer.add(_newLine());
     buffer.add(_escSizeNormal);
     buffer.add(_escBoldOff);
+
+    buffer.add(_newLine());
+    buffer.add(
+      _encode(
+        'Date: ${intl.DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
+      ),
+    );
+    buffer.add(_newLine());
+    buffer.add(_encode(_dashes(paperWidth)));
+    buffer.add(_newLine());
+    buffer.add(_escSizeLarge);
+    buffer.add(_encode('KOT'));
+    buffer.add(_escSizeNormal);
     buffer.add(_newLine());
 
-    // Order info
-    buffer.add(_escBold);
-    buffer.add(_encode('Order #$orderId'));
+    buffer.add(_encode(_dashes(paperWidth)));
     buffer.add(_newLine());
-    buffer.add(_escBoldOff);
+    // ============================================================
+    // ================= ORDER DETAILS =============================
+    // ============================================================
 
-    buffer
-        .add(_encode(intl.DateFormat('dd/MM/yy HH:mm').format(DateTime.now())));
+    buffer.add(_escAlignLeft);
+
+    // Payment Type
+    buffer.add(
+      _encode(
+        _formatLabelValueRight(
+          'Payment Type:',
+          paymentMethod ?? 'Cash',
+          paperWidth,
+        ),
+      ),
+    );
     buffer.add(_newLine());
 
-    // Truncate order type for narrow paper
-    final displayType = _truncate(orderType, paperWidth - 6);
-    buffer.add(_encode('Type: $displayType'));
+    // Customer Name
+    buffer.add(
+      _encode(
+        _formatLabelValueRight(
+          'Customer Name:',
+          customerName ?? 'Eat in',
+          paperWidth,
+        ),
+      ),
+    );
     buffer.add(_newLine());
+
+    // Phone Number (optional)
+    if (phoneNumber != null && phoneNumber.trim().isNotEmpty) {
+      buffer.add(
+        _encode(
+          _formatLabelValueRight(
+            'Contact Number:',
+            phoneNumber,
+            paperWidth,
+          ),
+        ),
+      );
+      buffer.add(_newLine());
+    }
 
     buffer.add(_encode(_dashes(paperWidth)));
     buffer.add(_newLine());
 
     // ============================================================
-    // ================= ITEMS =====================================
+    // ================= ITEMS TABLE ===============================
     // ============================================================
 
     buffer.add(_escAlignLeft);
+
+    final itemColWidth = paperWidth - 8;
+    final qtyColWidth = 8;
+
+    buffer.add(_escBold);
+    final headerLine =
+        _padRight('Item', itemColWidth) + _padCenter('Qty', qtyColWidth);
+
+    buffer.add(_encode(headerLine));
+    buffer.add(_newLine());
+    buffer.add(_escBoldOff);
+
+    // Items
     if (items != null && items.isNotEmpty) {
       for (var item in items) {
-        // Item name and quantity - adjust for paper width
-        buffer.add(_escBold);
-        final itemText = '${item.quantity}x ${item.title}';
+        final name = _truncate(item.title ?? 'Item', itemColWidth);
+        final qty = 'x${item.quantity ?? 0}';
 
-        if (paperWidth == _width52mm) {
-          // For 52mm, wrap long item names
-          final lines = _wrapText(itemText, paperWidth);
-          for (var line in lines) {
-            buffer.add(_encode(line));
-            buffer.add(_newLine());
-          }
-        } else {
-          buffer.add(_encode(_truncate(itemText, paperWidth)));
-          buffer.add(_newLine());
-        }
-        buffer.add(_escBoldOff);
+        final itemLine =
+            _padRight(name, itemColWidth) + _padCenter(qty, qtyColWidth);
+
+        buffer.add(_encode(itemLine));
+        buffer.add(_newLine());
 
         // Notes if present
         if (item.note != null && item.note!.isNotEmpty) {
@@ -296,27 +308,41 @@ class ReceiptPrinterMobile {
             buffer.add(_newLine());
           }
         }
-
-        buffer.add(_newLine());
       }
     }
 
     buffer.add(_encode(_dashes(paperWidth)));
-    buffer.add(_newLine());
-    buffer.add(_newLine());
-
-    // ============================================================
-    // ================= FOOTER ====================================
-    // ============================================================
-
     buffer.add(_escAlignCenter);
-    buffer.add(_encode('Thank You!'));
+    buffer.add(_encode('Order paid'));
+    buffer.add(_newLine());
     buffer.add(_newLine());
 
     buffer.add(_escFeedLines);
     buffer.add(_escCut);
 
     return buffer.toBytes();
+  }
+
+// ============================================================
+// ================= HELPER FUNCTIONS =========================
+// ============================================================
+
+  /// Creates a decorative line with specified character
+  static String _decorativeLine(int width, String char) {
+    return char * width;
+  }
+
+  /// Format label-value pairs with better spacing
+  static String _formatLabelValue(String label, String value, int width) {
+    final separator = ': ';
+    final combined = '$label$separator$value';
+    if (combined.length <= width) {
+      return combined;
+    }
+    // If too long, truncate value
+    final maxValueLength = width - label.length - separator.length;
+    final truncatedValue = _truncate(value, maxValueLength);
+    return '$label$separator$truncatedValue';
   }
 
   ///======================================================
