@@ -72,12 +72,13 @@ class PrintingAgentProviderMobile extends ChangeNotifier {
         );
       }
 
-      debugPrint("✅ Loaded printers: ${availablePrinters.length}");
+      debugPrint(" Loaded printers: ${availablePrinters.length}");
       if (availablePrinters.isEmpty) {
         print('----------- Empty ------------');
         availablePrinters.clear();
 
         selectCustomerPrinter(null);
+        selectKOTPrinter(null);
 
         // PrinterBoxService.clearBox();
       }
