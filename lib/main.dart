@@ -113,8 +113,8 @@ void startLocalServer(BuildContext context) async {
               await ReceiptPrinterMobile.printKOT(
                 context: context,
                 items: res.order?.items,
-                orderType: res.type.toString(),
-                                                                                                  orderId: res.order!.id.toString(),
+                orderType: res.order!.orderType.toString(),
+                orderId: res.order!.id.toString(),
               );
               successMessages.add(
                 'Customer receipt printed successfully on ""',
