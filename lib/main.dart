@@ -85,17 +85,17 @@ void startLocalServer(BuildContext context) async {
           List<String> successMessages = [];
           List<String> errorMessages = [];
           bool anyPrintSuccess = false;
-
+          print(
+              "***********************************************************************************  ${res.type}");
           // ========================================
           // STEP 2: HANDLE KOT PRINTING
           // ========================================
           if (res.type == 'customer') {
             try {
-              await ReceiptPrinterMobile.printKOT(
-                  context: context,
-                  orderId: res.order!.id.toString(),
-                  items: res.order?.items,
-                  orderType: res.order!.orderType.toString());
+              await ReceiptPrinterMobile.printReceipt(
+                context: context,
+                orderResponse: res,
+              );
               successMessages.add(
                 'Customer receipt printed successfully on ""',
               );
@@ -108,7 +108,25 @@ void startLocalServer(BuildContext context) async {
               print("❌ Customer receipt printing failed: $e");
             }
           }
-          if (res.type == 'kot') {
+          if (res.type == 'KOT') {
+            try {
+              await ReceiptPrinterMobile.printKOT(
+                context: context,
+                items: res.order?.items,
+                orderType: res.type.toString(),
+                                                                                                  orderId: res.order!.id.toString(),
+              );
+              successMessages.add(
+                'Customer receipt printed successfully on ""',
+              );
+              anyPrintSuccess = true;
+              print(" Customer receipt printed successfully");
+            } catch (e) {
+              errorMessages.add(
+                'Customer receipt printing failed: ${e.toString()}',
+              );
+              print("❌ Customer receipt printing failed: $e");
+            }
             // // if (validKotPrinter == null) {
             // if (provider.kotPrinter == null) {
             //   errorMessages.add(

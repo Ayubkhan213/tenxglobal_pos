@@ -419,14 +419,6 @@ class ReceiptPrinterMobile {
     buffer.add(_encode('Order ID: #${order?.id ?? 'N/A'}'));
     buffer.add(_newLine());
 
-    // Phone
-    if (businessInfo?.business.phone != null) {
-      buffer.add(_encode(
-        _truncate('Tel: ${businessInfo!.business.phone}', paperWidth),
-      ));
-      buffer.add(_newLine());
-    }
-
     // Date
     buffer.add(
       _encode(
@@ -435,7 +427,7 @@ class ReceiptPrinterMobile {
     );
     buffer.add(_newLine());
 
-    buffer.add(_encode(_dots(paperWidth)));
+    buffer.add(_encode(_dashes(paperWidth)));
     buffer.add(_newLine());
 
     // ============================================================
@@ -494,7 +486,7 @@ class ReceiptPrinterMobile {
     }
 
     buffer.add(_newLine());
-    buffer.add(_encode(_dots(paperWidth)));
+    buffer.add(_encode(_dashes(paperWidth)));
     buffer.add(_newLine());
 
     // ============================================================
@@ -532,9 +524,9 @@ class ReceiptPrinterMobile {
       }
     }
 
-    buffer.add(_encode(_dots(paperWidth)));
+    buffer.add(_encode(_dashes(paperWidth)));
     buffer.add(_newLine());
-    buffer.add(_newLine());
+ 
 
     // ============================================================
     // ================= TOTALS ===================================
@@ -548,16 +540,25 @@ class ReceiptPrinterMobile {
     final promoDiscount = order?.promoDiscount ?? 0;
     final deliveryCharges = order?.deliveryCharges ?? 0;
     final total = order?.totalAmount ?? 0;
-
     buffer.add(
       _encode(
         _formatLabelValueRight(
-          'Subtotal:',
-          '£${subtotal.toStringAsFixed(2)}',
+          'Order Price:',
+          '£${orderResponse.order?.subTotal?.toStringAsFixed(2)}',
           paperWidth,
         ),
       ),
     );
+    buffer.add(
+      _encode(
+        _formatLabelValueRight(
+          'Services Chaerges:',
+          '£${orderResponse.order?.serviceCharges?.toStringAsFixed(2)}',
+          paperWidth,
+        ),
+      ),
+    );
+
     buffer.add(_newLine());
 
     if (approvedDiscount > 0) {
@@ -612,12 +613,29 @@ class ReceiptPrinterMobile {
       buffer.add(_newLine());
     }
 
-    buffer.add(_escBold);
     buffer.add(
       _encode(
         _formatLabelValueRight(
-          'Total Price:',
+          'Net Price:',
           '£${total.toStringAsFixed(2)}',
+          paperWidth,
+        ),
+      ),
+    );
+    buffer.add(
+      _encode(
+        _formatLabelValueRight(
+          'Paid Amount:',
+          '£${total.toStringAsFixed(2)}',
+          paperWidth,
+        ),
+      ),
+    );
+    buffer.add(
+      _encode(
+        _formatLabelValueRight(
+          'Outstanding:',
+          ' 0.0',
           paperWidth,
         ),
       ),
@@ -625,8 +643,29 @@ class ReceiptPrinterMobile {
     buffer.add(_escBoldOff);
     buffer.add(_newLine());
 
-    buffer.add(_encode(_dots(paperWidth)));
+    buffer.add(_encode(_dashes(paperWidth)));
     buffer.add(_newLine());
+    buffer.add(_escBold);
+    buffer.add(
+      _encode(
+        'VAT/ Taxes',
+      ),
+    );
+    buffer.add(_escBoldOff);
+    buffer.add(_newLine());
+
+    buffer.add(
+      _encode(
+        _formatLabelValueRight(
+          'Total VAT',
+          '£${orderResponse.order?.tax?.toStringAsFixed(2)}',
+          paperWidth,
+        ),
+      ),
+    );
+
+    buffer.add(_newLine());
+    buffer.add(_encode(_dashes(paperWidth)));
     buffer.add(_newLine());
 
     // ============================================================
@@ -634,6 +673,13 @@ class ReceiptPrinterMobile {
     // ============================================================
 
     buffer.add(_escAlignCenter);
+    // Phone
+    if (businessInfo?.business.phone != null) {
+      buffer.add(_encode(
+        _truncate('Tel: ${businessInfo!.business.phone}', paperWidth),
+      ));
+      buffer.add(_newLine());
+    }
 
     if (businessInfo?.user.email != null &&
         businessInfo!.user.email!.isNotEmpty) {
@@ -676,7 +722,7 @@ class ReceiptPrinterMobile {
 
   static String _dashes(int count) => '-' * count;
   static String _equals(int count) => '=' * count;
-  static String _dots(int count) => '.' * count;
+  // static String _dots(int count) => '.' * count;
 
   /// Format label with right-aligned value (like in the receipt image)
   static String _formatLabelValueRight(
