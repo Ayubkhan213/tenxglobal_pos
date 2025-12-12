@@ -197,7 +197,7 @@ class ReceiptPrinterMobile {
     buffer.add(
         _encode(orderType.isNotEmpty ? orderType.toUpperCase() : 'EAT IN'));
     buffer.add(_newLine());
-
+    buffer.add(_newLine());
     buffer.add(_escSizeNormal);
     buffer.add(_escBoldOff);
 
@@ -361,49 +361,64 @@ class ReceiptPrinterMobile {
     // ============================================================
     // =============== PRINT LOGO AT START =========================
     // ============================================================
-    if (businessInfo?.business.logoUrl != null &&
-        businessInfo!.business.logoUrl!.trim().isNotEmpty) {
-      try {
-        // Load image from URL
-        final ByteData imgBytes = await NetworkAssetBundle(
-          Uri.parse(businessInfo.business.logoUrl!),
-        ).load("");
+    // if (businessInfo?.business.logoUrl != null &&
+    //     businessInfo!.business.logoUrl!.trim().isNotEmpty) {
+    //   try {
+    //     // Load image from URL
+    //     final ByteData imgBytes = await NetworkAssetBundle(
+    //       Uri.parse(businessInfo.business.logoUrl!),
+    //     ).load("");
 
-        final Uint8List imageData = imgBytes.buffer.asUint8List();
+    //     final Uint8List imageData = imgBytes.buffer.asUint8List();
 
-        // Decode image
-        final img.Image? decodedImg = img.decodeImage(imageData);
+    //     // Decode image
+    //     final img.Image? decodedImg = img.decodeImage(imageData);
 
-        if (decodedImg != null) {
-          // 🔥 Resize logo (WIDTH = 150px for small logo)
-          final img.Image resized = img.copyResize(
-            decodedImg,
-            width: 150, // change to 120 / 100 if you want even smaller
-            height: null,
-          );
+    //     if (decodedImg != null) {
+    //       // 🔥 Resize logo (WIDTH = 150px for small logo)
+    //       final img.Image resized = img.copyResize(
+    //         decodedImg,
+    //         width: 150, // change to 120 / 100 if you want even smaller
+    //         height: null,
+    //       );
 
-          final Generator generator = Generator(
-            paperWidth == _width80mm ? PaperSize.mm80 : PaperSize.mm58,
-            await CapabilityProfile.load(),
-          );
+    //       final Generator generator = Generator(
+    //         paperWidth == _width80mm ? PaperSize.mm80 : PaperSize.mm58,
+    //         await CapabilityProfile.load(),
+    //       );
 
-          // Convert resized image to ESC/POS
-          final List<int> bytes = generator.image(resized);
+    //       // Convert resized image to ESC/POS
+    //       final List<int> bytes = generator.image(resized);
 
-          buffer.add(bytes);
-          buffer.add(generator.reset());
-        }
-      } catch (e) {
-        debugPrint("Logo loading failed: $e");
-      }
-    }
+    //       buffer.add(bytes);
+    //       buffer.add(generator.reset());
+    //     }
+    //   } catch (e) {
+    //     debugPrint("Logo loading failed: $e");
+    //   }
+    // }
 
     // ============================================================
     // ================= BUSINESS HEADER ===========================
     // ============================================================
 
     buffer.add(_escAlignCenter);
+    buffer.add(_escAlignCenter);
 
+    buffer.add(_escSizeLarge);
+    buffer.add(_encode(order?.orderType ?? 'Eatin'));
+    buffer.add(_newLine2());
+    buffer.add(_newLine());
+    buffer.add(_escSizeNormal);
+    buffer.add(_escBoldOff);
+
+    buffer.add(_escSizeDouble);
+    buffer.add(_escBold);
+    buffer.add(_encode('${order?.id ?? 'N/A'}'));
+    buffer.add(_newLine());
+    buffer.add(_newLine());
+    buffer.add(_escSizeNormal);
+    buffer.add(_escBoldOff);
     // Business Name (Bold)
     buffer.add(paperWidth >= _width58mm ? _escSizeLarge : _escSizeNormal);
     buffer.add(_escBold);
@@ -411,21 +426,14 @@ class ReceiptPrinterMobile {
     final businessName = businessInfo?.business.businessName ?? 'BUSINESS NAME';
     buffer.add(_encode(_truncate(businessName, paperWidth)));
     buffer.add(_newLine());
+    buffer.add(_newLine());
 
     buffer.add(_escSizeNormal);
     buffer.add(_escBoldOff);
 
     // Order ID
-    buffer.add(_encode('Order ID: #${order?.id ?? 'N/A'}'));
-    buffer.add(_newLine());
-
-    // Phone
-    if (businessInfo?.business.phone != null) {
-      buffer.add(_encode(
-        _truncate('Tel: ${businessInfo!.business.phone}', paperWidth),
-      ));
-      buffer.add(_newLine());
-    }
+    // buffer.add(_encode('Order ID: #${order?.id ?? 'N/A'}'));
+    // buffer.add(_newLine());
 
     // Date
     buffer.add(
@@ -435,7 +443,7 @@ class ReceiptPrinterMobile {
     );
     buffer.add(_newLine());
 
-    buffer.add(_encode(_dots(paperWidth)));
+    buffer.add(_encode(_dashes(paperWidth)));
     buffer.add(_newLine());
 
     // ============================================================
@@ -457,16 +465,16 @@ class ReceiptPrinterMobile {
     buffer.add(_newLine());
 
     // Order Type
-    buffer.add(
-      _encode(
-        _formatLabelValueRight(
-          'Order Type:',
-          order?.orderType ?? 'Eatin',
-          paperWidth,
-        ),
-      ),
-    );
-    buffer.add(_newLine());
+    // buffer.add(
+    //   _encode(
+    //     _formatLabelValueRight(
+    //       'Order Type:',
+    //       order?.orderType ?? 'Eatin',
+    //       paperWidth,
+    //     ),
+    //   ),
+    // );
+    // buffer.add(_newLine());
 
     // Customer Name
     buffer.add(
@@ -494,7 +502,7 @@ class ReceiptPrinterMobile {
     }
 
     buffer.add(_newLine());
-    buffer.add(_encode(_dots(paperWidth)));
+    buffer.add(_encode(_dashes(paperWidth)));
     buffer.add(_newLine());
 
     // ============================================================
@@ -532,8 +540,7 @@ class ReceiptPrinterMobile {
       }
     }
 
-    buffer.add(_encode(_dots(paperWidth)));
-    buffer.add(_newLine());
+    buffer.add(_encode(_dashes(paperWidth)));
     buffer.add(_newLine());
 
     // ============================================================
@@ -548,16 +555,25 @@ class ReceiptPrinterMobile {
     final promoDiscount = order?.promoDiscount ?? 0;
     final deliveryCharges = order?.deliveryCharges ?? 0;
     final total = order?.totalAmount ?? 0;
-
     buffer.add(
       _encode(
         _formatLabelValueRight(
-          'Subtotal:',
-          '£${subtotal.toStringAsFixed(2)}',
+          'Order Price:',
+          '£${orderResponse.order?.subTotal?.toStringAsFixed(2)}',
           paperWidth,
         ),
       ),
     );
+    buffer.add(
+      _encode(
+        _formatLabelValueRight(
+          'Services Chaerges:',
+          '£${orderResponse.order?.serviceCharges?.toStringAsFixed(2)}',
+          paperWidth,
+        ),
+      ),
+    );
+
     buffer.add(_newLine());
 
     if (approvedDiscount > 0) {
@@ -612,12 +628,29 @@ class ReceiptPrinterMobile {
       buffer.add(_newLine());
     }
 
-    buffer.add(_escBold);
     buffer.add(
       _encode(
         _formatLabelValueRight(
-          'Total Price:',
+          'Net Price:',
           '£${total.toStringAsFixed(2)}',
+          paperWidth,
+        ),
+      ),
+    );
+    buffer.add(
+      _encode(
+        _formatLabelValueRight(
+          'Paid Amount:',
+          '£${total.toStringAsFixed(2)}',
+          paperWidth,
+        ),
+      ),
+    );
+    buffer.add(
+      _encode(
+        _formatLabelValueRight(
+          'Outstanding:',
+          ' 0.0',
           paperWidth,
         ),
       ),
@@ -625,8 +658,29 @@ class ReceiptPrinterMobile {
     buffer.add(_escBoldOff);
     buffer.add(_newLine());
 
-    buffer.add(_encode(_dots(paperWidth)));
+    buffer.add(_encode(_dashes(paperWidth)));
     buffer.add(_newLine());
+    buffer.add(_escBold);
+    buffer.add(
+      _encode(
+        'VAT/ Taxes',
+      ),
+    );
+    buffer.add(_escBoldOff);
+    buffer.add(_newLine());
+
+    buffer.add(
+      _encode(
+        _formatLabelValueRight(
+          'Total VAT',
+          '£${orderResponse.order?.tax?.toStringAsFixed(2)}',
+          paperWidth,
+        ),
+      ),
+    );
+
+    buffer.add(_newLine());
+    buffer.add(_encode(_dashes(paperWidth)));
     buffer.add(_newLine());
 
     // ============================================================
@@ -634,6 +688,13 @@ class ReceiptPrinterMobile {
     // ============================================================
 
     buffer.add(_escAlignCenter);
+    // Phone
+    if (businessInfo?.business.phone != null) {
+      buffer.add(_encode(
+        _truncate('Tel: ${businessInfo!.business.phone}', paperWidth),
+      ));
+      buffer.add(_newLine());
+    }
 
     if (businessInfo?.user.email != null &&
         businessInfo!.user.email!.isNotEmpty) {
@@ -674,9 +735,22 @@ class ReceiptPrinterMobile {
     return Uint8List.fromList([0x0A]);
   }
 
+  static Uint8List _newLine2() {
+    // 0x0A is the ASCII value for Line Feed (LF),
+    // which is the standard new line character on Unix-like systems (and the internet).
+    // 0x0D is the ASCII value for Carriage Return (CR).
+    // CR + LF (0x0D, 0x0A) is the standard new line for Windows/DOS.
+
+    // If you need a more explicit/common sequence, use CR+LF:
+    return Uint8List.fromList([0x0D, 0x0A]);
+
+    // Alternatively, just a single Line Feed (LF) is often sufficient:
+    // return Uint8List.fromList([0x0A]);
+  }
+
   static String _dashes(int count) => '-' * count;
   static String _equals(int count) => '=' * count;
-  static String _dots(int count) => '.' * count;
+  // static String _dots(int count) => '.' * count;
 
   /// Format label with right-aligned value (like in the receipt image)
   static String _formatLabelValueRight(
