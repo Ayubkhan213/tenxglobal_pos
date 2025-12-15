@@ -67,7 +67,7 @@ void startLocalServer(BuildContext context) async {
           var res = OrderResponse.fromJson(data);
           print(
               '###########################################################################');
-          Utils.resApiResponse = res;
+          // Utils.resApiResponse = res;
 
           print(data);
 
@@ -127,49 +127,7 @@ void startLocalServer(BuildContext context) async {
               );
               print("❌ Customer receipt printing failed: $e");
             }
-            // // if (validKotPrinter == null) {
-            // if (provider.kotPrinter == null) {
-            //   errorMessages.add(
-            //     'KOT printer not configured. Please select a KOT printer in settings.',
-            //   );
-            // } else {
-            //   try {
-            //     print('------------------ KOT Printer -------------------');
-            //     await ReceiptPrinterMobile.printKOT(
-            //       context: context,
-
-            //     );
-            //     successMessages.add('KOT printed successfully on');
-            //     anyPrintSuccess = true;
-            //     print("✅ KOT printed successfully");
-            //   } catch (e) {
-            //     errorMessages.add('KOT printing failed: ${e.toString()}');
-            //     print("❌ KOT printing failed: $e");
-            //   }
-            //   errorMessages.add(
-            //     'KOT printer "${provider.kotPrinter!.name}" is not connected. Please check the printer connection.',
-            //   );
-            // }
           }
-          // else {
-          //   try {
-          //     print('------------------ KOT Printer -------------------');
-          //     await ReceiptDialogPreviewer.showKOTPreview(
-          //       context: context,
-          //       orderId: orderId,
-          //       orderType: orderType,
-          //       items: items,
-          //     );
-          //     successMessages.add('KOT printed successfully on');
-          //     anyPrintSuccess = true;
-          //     print("✅ KOT printed successfully");
-          //   } catch (e) {
-          //     errorMessages.add('KOT printing failed: ${e.toString()}');
-          //     print("❌ KOT printing failed: $e");
-          //   }
-          //   // }
-          // }
-          // }
 
           // ========================================
           // STEP 4: SEND RESPONSE
@@ -359,10 +317,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => LoginProvider()),
         ChangeNotifierProvider(create: (_) => PrintingAgentProviderMobile()),
       ],
-      child: const POSAgentApp(
-          // printServer:
-          // printServer
-          ),
+      child: const POSAgentApp(),
     ),
   );
 }
