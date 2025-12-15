@@ -5,9 +5,10 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart' as pf;
 import 'package:provider/provider.dart';
+import 'package:tenxglobal_pos/core/services/hive_services/business_info_service.dart';
 import 'package:tenxglobal_pos/models/order_response_model.dart';
 import 'package:tenxglobal_pos/provider/printing_agant_provider.dart';
-import 'package:tenxglobal_pos/services/hive_services/business_info_services.dart';
+
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
 

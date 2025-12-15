@@ -44,6 +44,7 @@ class OrderData {
   String? createdAt;
   int? id;
   List<OrderItem>? items;
+
   KotData? kot;
   List<dynamic>? promo;
   String? phoneNumber;
@@ -157,7 +158,7 @@ class OrderItem {
   String? variantName;
   List<dynamic>? addons;
   double? saleDiscountPerItem;
-  List<dynamic>? removedIngredients;
+  List<RemovedIngredient>? removedIngredients;
 
   OrderItem({
     this.productId,
@@ -187,13 +188,15 @@ class OrderItem {
       taxPercentage: _toDouble(json['tax_percentage']),
       taxAmount: _toDouble(json['tax_amount']),
       saleDiscountPerItem: _toDouble(json['sale_discount_per_item']),
-      note: json['note'],
+      note: json['item_kitchen_note'],
       kitchenNote: json['kitchen_note'],
       itemKitchenNote: json['item_kitchen_note'],
       variantId: json['variant_id'],
       variantName: json['variant_name'],
       addons: json['addons'],
-      removedIngredients: json['removed_ingredients'],
+      removedIngredients: (json['removed_ingredients'] as List?)
+          ?.map((e) => RemovedIngredient.fromJson(e))
+          .toList(),
     );
   }
 }
@@ -275,6 +278,23 @@ class KotItem {
       status: json['status']?.toString() ?? '',
       createdAt: json['created_at']?.toString() ?? '',
       updatedAt: json['updated_at']?.toString() ?? '',
+    );
+  }
+}
+
+class RemovedIngredient {
+  final int id;
+  final String name;
+
+  RemovedIngredient({
+    required this.id,
+    required this.name,
+  });
+
+  factory RemovedIngredient.fromJson(Map<String, dynamic> json) {
+    return RemovedIngredient(
+      id: int.tryParse(json['id'].toString()) ?? 0,
+      name: json['name']?.toString() ?? '',
     );
   }
 }

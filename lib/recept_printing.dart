@@ -6,9 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:provider/provider.dart';
+import 'package:tenxglobal_pos/core/services/hive_services/business_info_service.dart';
 import 'package:tenxglobal_pos/models/order_response_model.dart';
 import 'package:tenxglobal_pos/provider/printing_agant_provider.dart';
-import 'package:tenxglobal_pos/services/hive_services/business_info_services.dart';
 
 class ReceiptPrinterMobile {
   /// ESC/POS Commands
@@ -292,17 +292,43 @@ class ReceiptPrinterMobile {
     if (items != null && items.isNotEmpty) {
       for (var item in items) {
         final name = _truncate(item.title ?? 'Item', itemColWidth);
-        final qty = 'x${item.quantity ?? 0}';
+        final qty = '${item.quantity ?? 0}';
+// 1️ Print NAME (normal)
+        buffer.add(_encode(_padRight(name, itemColWidth)));
 
-        final itemLine =
-            _padRight(name, itemColWidth) + _padCenter(qty, qtyColWidth);
+// 2️ Turn BOLD ON
+        buffer.add(_escBold);
 
-        buffer.add(_encode(itemLine));
+// 3️ Print QTY (bold)
+        buffer.add(_encode(_padCenter(qty, qtyColWidth)));
+
+// 4️ Turn BOLD OFF
+        buffer.add(_escBoldOff);
+        //  Check removed ingredients
+        if (item.removedIngredients != null &&
+            item.removedIngredients!.isNotEmpty) {
+          // Indent for "Remove"
+          // const removeIndent = ''; // 4 spaces
+
+          // buffer.add(_encode('$removeIndent Remove:'));
+
+          // buffer.add(_newLine());
+
+          // Indent further for each removed ingredient
+          const ingredientIndent = ''; // 8 spaces
+          for (var ing in item.removedIngredients!) {
+            buffer.add(_encode('$ingredientIndent Remove ${ing.name}'));
+
+            // buffer.add(_newLine());
+          }
+        }
+
         buffer.add(_newLine());
 
         // Notes if present
         if (item.note != null && item.note!.isNotEmpty) {
-          final noteLines = _wrapText('  * ${item.note}', paperWidth - 2);
+          final noteLines = _wrapText(
+              '  Note: ${item.note?.split('.').first}', paperWidth - 2);
           for (var line in noteLines) {
             buffer.add(_encode(line));
             buffer.add(_newLine());
@@ -326,24 +352,6 @@ class ReceiptPrinterMobile {
 // ============================================================
 // ================= HELPER FUNCTIONS =========================
 // ============================================================
-
-  /// Creates a decorative line with specified character
-  static String _decorativeLine(int width, String char) {
-    return char * width;
-  }
-
-  /// Format label-value pairs with better spacing
-  static String _formatLabelValue(String label, String value, int width) {
-    final separator = ': ';
-    final combined = '$label$separator$value';
-    if (combined.length <= width) {
-      return combined;
-    }
-    // If too long, truncate value
-    final maxValueLength = width - label.length - separator.length;
-    final truncatedValue = _truncate(value, maxValueLength);
-    return '$label$separator$truncatedValue';
-  }
 
   ///======================================================
   /// GENERATE CUSTOMER RECEIPT ESC/POS DATA - MATCHES PDF DESIGN
@@ -528,15 +536,43 @@ class ReceiptPrinterMobile {
     if (order?.items != null && order!.items!.isNotEmpty) {
       for (var item in order.items!) {
         final name = _truncate(item.title ?? 'Item', itemColWidth);
-        final qty = 'x${item.quantity ?? 0}';
+        final qty = '${item.quantity ?? 0}';
         final price = '£${(item.price ?? 0).toStringAsFixed(2)}';
+        // 1️ Print NAME (normal)
+        buffer.add(_encode(_padRight(name, itemColWidth)));
 
-        final itemLine = _padRight(name, itemColWidth) +
-            _padCenter(qty, qtyColWidth) +
-            _padLeft(price, priceColWidth);
+        // 2️ Turn BOLD ON
+        buffer.add(_escBold);
 
-        buffer.add(_encode(itemLine));
-        buffer.add(_newLine());
+        // 3️ Print QTY + PRICE (bold)
+        buffer.add(_encode(
+          _padCenter(qty, qtyColWidth) + _padLeft(price, priceColWidth),
+        ));
+
+        // 4️ Turn BOLD OFF
+        buffer.add(_escBoldOff);
+        //  Check removed ingredients
+        if (item.removedIngredients != null &&
+            item.removedIngredients!.isNotEmpty) {
+          // Indent for "Remove"
+          // const removeIndent = ''; // 4 spaces
+
+          // buffer.add(_encode('$removeIndent Remove'));
+
+          // buffer.add(_newLine());
+
+          // Indent further for each removed ingredient
+          const ingredientIndent = ''; // 8 spaces
+          for (var ing in item.removedIngredients!) {
+            buffer.add(_encode('$ingredientIndent Remove ${ing.name}'));
+
+            buffer.add(_newLine());
+          }
+        }
+        if (item.removedIngredients != null &&
+            item.removedIngredients!.isEmpty) {
+          buffer.add(_newLine());
+        }
       }
     }
 
@@ -555,106 +591,112 @@ class ReceiptPrinterMobile {
     final promoDiscount = order?.promoDiscount ?? 0;
     final deliveryCharges = order?.deliveryCharges ?? 0;
     final total = order?.totalAmount ?? 0;
-    buffer.add(
-      _encode(
-        _formatLabelValueRight(
-          'Order Price:',
-          '£${orderResponse.order?.subTotal?.toStringAsFixed(2)}',
-          paperWidth,
-        ),
-      ),
+    printLabelValueRightBold(
+      buffer: buffer,
+      label: 'Order Price:',
+      value: '£${orderResponse.order?.subTotal?.toStringAsFixed(2)}',
+      escBoldOn: _escBold,
+      escBoldOff: _escBoldOff,
+      encode: _encode,
+      totalWidth: paperWidth,
     );
-    buffer.add(
-      _encode(
-        _formatLabelValueRight(
-          'Services Chaerges:',
-          '£${orderResponse.order?.serviceCharges?.toStringAsFixed(2)}',
-          paperWidth,
-        ),
-      ),
+
+    printLabelValueRightBold(
+      buffer: buffer,
+      label: 'Services Charges:',
+      value: '£${orderResponse.order?.serviceCharges?.toStringAsFixed(2)}',
+      escBoldOn: _escBold,
+      escBoldOff: _escBoldOff,
+      encode: _encode,
+      totalWidth: paperWidth,
     );
 
     buffer.add(_newLine());
 
     if (approvedDiscount > 0) {
-      buffer.add(
-        _encode(
-          _formatLabelValueRight(
-            'Discount:',
-            '-£${approvedDiscount.toStringAsFixed(2)}',
-            paperWidth,
-          ),
-        ),
+      printLabelValueRightBold(
+        buffer: buffer,
+        label: 'Discount:',
+        value: '-£${approvedDiscount.toStringAsFixed(2)}',
+        escBoldOn: _escBold,
+        escBoldOff: _escBoldOff,
+        encode: _encode,
+        totalWidth: paperWidth,
       );
+
       buffer.add(_newLine());
     }
 
     if (salesDiscount > 0) {
-      buffer.add(
-        _encode(
-          _formatLabelValueRight(
-            'Sale:',
-            '-£${salesDiscount.toStringAsFixed(2)}',
-            paperWidth,
-          ),
-        ),
+      printLabelValueRightBold(
+        buffer: buffer,
+        label: 'Sale:',
+        value: '-£${salesDiscount.toStringAsFixed(2)}',
+        escBoldOn: _escBold,
+        escBoldOff: _escBoldOff,
+        encode: _encode,
+        totalWidth: paperWidth,
       );
+
       buffer.add(_newLine());
     }
 
     if (promoDiscount > 0) {
-      buffer.add(
-        _encode(
-          _formatLabelValueRight(
-            'Promo Discount:',
-            '-£${promoDiscount.toStringAsFixed(2)}',
-            paperWidth,
-          ),
-        ),
+      printLabelValueRightBold(
+        buffer: buffer,
+        label: 'Promo Discount:',
+        value: '-£${promoDiscount.toStringAsFixed(2)}',
+        escBoldOn: _escBold,
+        escBoldOff: _escBoldOff,
+        encode: _encode,
+        totalWidth: paperWidth,
       );
+
       buffer.add(_newLine());
     }
 
     if (orderResponse.type == 'Delivery' && deliveryCharges > 0) {
-      buffer.add(
-        _encode(
-          _formatLabelValueRight(
-            'Delivery Charges:',
-            '${deliveryCharges.toStringAsFixed(0)}%',
-            paperWidth,
-          ),
-        ),
+      printLabelValueRightBold(
+        buffer: buffer,
+        label: 'Delivery Charges:',
+        value: '${deliveryCharges.toStringAsFixed(0)}%',
+        escBoldOn: _escBold,
+        escBoldOff: _escBoldOff,
+        encode: _encode,
+        totalWidth: paperWidth,
       );
+
       buffer.add(_newLine());
     }
+    printLabelValueRightBold(
+      buffer: buffer,
+      label: 'Net Price:',
+      value: '£${total.toStringAsFixed(2)}',
+      escBoldOn: _escBold,
+      escBoldOff: _escBoldOff,
+      encode: _encode,
+      totalWidth: paperWidth,
+    );
+    printLabelValueRightBold(
+      buffer: buffer,
+      label: 'Paid Amount:',
+      value: '£${total.toStringAsFixed(2)}',
+      escBoldOn: _escBold,
+      escBoldOff: _escBoldOff,
+      encode: _encode,
+      totalWidth: paperWidth,
+    );
 
-    buffer.add(
-      _encode(
-        _formatLabelValueRight(
-          'Net Price:',
-          '£${total.toStringAsFixed(2)}',
-          paperWidth,
-        ),
-      ),
+    printLabelValueRightBold(
+      buffer: buffer,
+      label: 'Outstanding:',
+      value: ' 0.0',
+      escBoldOn: _escBold,
+      escBoldOff: _escBoldOff,
+      encode: _encode,
+      totalWidth: paperWidth,
     );
-    buffer.add(
-      _encode(
-        _formatLabelValueRight(
-          'Paid Amount:',
-          '£${total.toStringAsFixed(2)}',
-          paperWidth,
-        ),
-      ),
-    );
-    buffer.add(
-      _encode(
-        _formatLabelValueRight(
-          'Outstanding:',
-          ' 0.0',
-          paperWidth,
-        ),
-      ),
-    );
+
     buffer.add(_escBoldOff);
     buffer.add(_newLine());
 
@@ -669,14 +711,14 @@ class ReceiptPrinterMobile {
     buffer.add(_escBoldOff);
     buffer.add(_newLine());
 
-    buffer.add(
-      _encode(
-        _formatLabelValueRight(
-          'Total VAT',
-          '£${orderResponse.order?.tax?.toStringAsFixed(2)}',
-          paperWidth,
-        ),
-      ),
+    printLabelValueRightBold(
+      buffer: buffer,
+      label: 'Total VAT',
+      value: '£${orderResponse.order?.tax?.toStringAsFixed(2)}',
+      escBoldOn: _escBold,
+      escBoldOff: _escBoldOff,
+      encode: _encode,
+      totalWidth: paperWidth,
     );
 
     buffer.add(_newLine());
@@ -751,6 +793,27 @@ class ReceiptPrinterMobile {
   static String _dashes(int count) => '-' * count;
   static String _equals(int count) => '=' * count;
   // static String _dots(int count) => '.' * count;
+  static void printLabelValueRightBold({
+    required BytesBuilder buffer,
+    required String label,
+    required String value,
+    required int totalWidth,
+    required List<int> escBoldOn,
+    required List<int> escBoldOff,
+    required List<int> Function(String) encode,
+  }) {
+    final spaceCount = totalWidth - label.length - value.length;
+
+    // Label (NORMAL)
+    buffer.add(
+      encode(label + (' ' * (spaceCount > 0 ? spaceCount : 1))),
+    );
+
+    // Value (BOLD)
+    buffer.add(escBoldOn);
+    buffer.add(encode(value));
+    buffer.add(escBoldOff);
+  }
 
   /// Format label with right-aligned value (like in the receipt image)
   static String _formatLabelValueRight(
@@ -759,9 +822,7 @@ class ReceiptPrinterMobile {
     if (availableSpace <= 0) {
       // If no space, truncate value
       final maxValueLen = totalWidth - label.length - 1;
-      return label +
-          ' ' +
-          (maxValueLen > 0 ? _truncate(value, maxValueLen) : '');
+      return '$label ${maxValueLen > 0 ? _truncate(value, maxValueLen) : ''}';
     }
     return label + (' ' * availableSpace) + value;
   }
