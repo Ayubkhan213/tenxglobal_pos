@@ -67,7 +67,6 @@ void startLocalServer(BuildContext context) async {
           var res = OrderResponse.fromJson(data);
           print(
               '###########################################################################');
-          // Utils.resApiResponse = res;
 
           print(data);
 
@@ -359,10 +358,12 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
   bool _serverStarted = false;
-  final _pages = const [
-    POSWebViewScreen(),
-    LoginScreen(),
+
+  // Keys for pages to force rebuild
+  final List<GlobalKey<_POSWebViewScreenState>> _pageKeys = [
+    GlobalKey<_POSWebViewScreenState>(),
   ];
+
   @override
   void initState() {
     super.initState();
@@ -376,13 +377,34 @@ class _MainShellState extends State<MainShell> {
     });
   }
 
+  final _pages = const [
+    POSWebViewScreen(),
+    LoginScreen(),
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
         child: IndexedStack(
           index: _currentIndex,
-          children: _pages,
+          children: [
+            RefreshIndicator(
+              onRefresh: () async {
+                // Force the WebView to reload by calling reload method
+                _pageKeys[0].currentState?.reloadWebView();
+                print("POS WebView refreshed!");
+              },
+              child: SingleChildScrollView(
+                physics: const NeverScrollableScrollPhysics(),
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height,
+                  child: POSWebViewScreen(key: _pageKeys[0]),
+                ),
+              ),
+            ),
+            _pages[1], // Printer tab, no refresh needed
+          ],
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -417,6 +439,14 @@ class _POSWebViewScreenState extends State<POSWebViewScreen> {
   InAppWebViewController? _webViewController;
   double _progress = 0;
 
+  // Call this to reload the WebView
+  void reloadWebView() {
+    if (_webViewController != null) {
+      _webViewController!.reload();
+      print("WebView reloaded!");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
@@ -433,9 +463,7 @@ class _POSWebViewScreenState extends State<POSWebViewScreen> {
       child: Stack(
         children: [
           InAppWebView(
-            initialUrlRequest: URLRequest(
-              url: WebUri(AppConfig.posUrl),
-            ),
+            initialUrlRequest: URLRequest(url: WebUri(AppConfig.posUrl)),
             initialSettings: InAppWebViewSettings(
               javaScriptEnabled: true,
               mediaPlaybackRequiresUserGesture: false,
@@ -448,23 +476,19 @@ class _POSWebViewScreenState extends State<POSWebViewScreen> {
             ),
             onWebViewCreated: (controller) {
               _webViewController = controller;
-              print(" WebView created");
+              print("WebView created");
             },
             onLoadStart: (controller, url) {
               setState(() => _progress = 0);
-
-              print(' WebView loading: $url');
             },
             onLoadStop: (controller, url) async {
               setState(() => _progress = 0);
-
-              print(' WebView load done: $url');
             },
             onProgressChanged: (controller, progress) {
               setState(() => _progress = progress / 100);
             },
             onReceivedError: (controller, request, error) {
-              print(' WebView error: $error');
+              print('WebView error: $error');
             },
           ),
           if (_progress > 0 && _progress < 1)
@@ -483,7 +507,6 @@ class _POSWebViewScreenState extends State<POSWebViewScreen> {
     );
   }
 }
-
 
 
 
