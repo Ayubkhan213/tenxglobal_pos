@@ -6,6 +6,7 @@ import 'package:tenxglobal_pos/core/constants/app_url.dart';
 import 'package:tenxglobal_pos/core/services/api_services/base_api_services.dart';
 import 'package:tenxglobal_pos/core/services/api_services/network_api_services.dart';
 import 'package:tenxglobal_pos/core/services/hive_services/business_info_service.dart';
+import 'package:tenxglobal_pos/core/services/hive_services/printer_box_service.dart';
 import 'package:tenxglobal_pos/main.dart';
 
 import 'package:tenxglobal_pos/models/business_info_model.dart';
@@ -123,5 +124,12 @@ class LoginProvider extends ChangeNotifier {
     password.dispose();
     apiKey.dispose();
     super.dispose();
+  }
+
+  logout() {
+    BusinessInfoBoxService.clearBox();
+    PrinterBoxService.clearBox();
+    currentStep = 0;
+    notifyListeners();
   }
 }
