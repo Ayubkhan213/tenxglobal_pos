@@ -7,7 +7,7 @@ class AppConfig {
       // type == 'debug'
       // ? 'https://posdemo.10xglobal.co.uk'
       // :
-      'https://smashngrubpos.10xglobal.co.uk';
+      'https://smashngrub.10xglobal.co.uk/';
   // static const String posUrl = 'https://YOUR_POS_URL_HERE';
   // HTTP server port for print agent
   static const int printServerPort = 8085;

@@ -53,8 +53,8 @@ class _LoginScreenState extends State<LoginScreen> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              const Color(0xFF1976D2).withValues(alpha: 0.05),
-              const Color(0xFF1565C0).withValues(alpha: 0.05),
+              const Color(0xFF1976D2).withOpacity(0.05),
+              const Color(0xFF1565C0).withOpacity(0.05),
             ],
           ),
         ),
@@ -65,35 +65,87 @@ class _LoginScreenState extends State<LoginScreen> {
               width: 600.0,
               child: Column(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  Stack(
                     children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor: const Color(0xFF1976D2),
-                        child: const Icon(
-                          Icons.print,
-                          size: 45,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      // Header Row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            "10xGlobal Printing Agent",
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue.shade700,
+                          CircleAvatar(
+                            radius: 40,
+                            backgroundColor: const Color(0xFF1976D2),
+                            child: const Icon(
+                              Icons.print,
+                              size: 45,
+                              color: Colors.white,
                             ),
                           ),
-                          Text(
-                            "Web POS Printing Service",
-                            style: TextStyle(color: Colors.grey.shade600),
+                          const SizedBox(width: 20),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "10xGlobal Printing Agent",
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                              Text(
+                                "Web POS Printing Service",
+                                style: TextStyle(color: Colors.grey.shade600),
+                              ),
+                            ],
                           ),
                         ],
+                      ),
+                      // Logout Button on top-right
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: IconButton(
+                          icon: const Icon(Icons.logout, color: Colors.red),
+                          onPressed: () async {
+                            // Show confirmation dialog
+                            bool? confirmLogout = await showDialog<bool>(
+                              context: context,
+                              builder: (context) {
+                                return AlertDialog(
+                                  title: const Text("Confirm Logout"),
+                                  content: const Text(
+                                      "Are you sure you want to logout?"),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(context).pop(false),
+                                      child: const Text("Cancel"),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () =>
+                                          Navigator.of(context).pop(true),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                      ),
+                                      child: const Text("Logout"),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+
+                            // If user confirmed, call logout
+                            if (confirmLogout == true) {
+                              final authProvider = Provider.of<LoginProvider>(
+                                  context,
+                                  listen: false);
+                              authProvider.logout();
+
+                              // Optionally navigate to login screen
+                              // Navigator.pushReplacementNamed(context, '/login');
+                            }
+                          },
+                        ),
                       ),
                     ],
                   ),
