@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:provider/provider.dart';
+import 'package:tenxglobal_pos/core/services/dreawer_services/drawer_services.dart';
 import 'package:tenxglobal_pos/core/services/hive_services/business_info_service.dart';
 import 'package:tenxglobal_pos/models/order_response_model.dart';
 import 'package:tenxglobal_pos/provider/printing_agant_provider.dart';
@@ -60,9 +61,10 @@ class ReceiptPrinterMobile {
   ///======================================================
   static Future<void> printKOT({
     required BuildContext context,
-    required String orderId,
-    String orderType = '',
-    List<OrderItem>? items,
+    // required String orderId,
+    // String orderType = '',
+    // List<OrderItem>? items,
+    required OrderResponse orderResponse,
   }) async {
     try {
       final provider = Provider.of<PrintingAgentProviderMobile>(
@@ -76,6 +78,10 @@ class ReceiptPrinterMobile {
 
       final urlParts = provider.kotPrinter!.url.split(':');
       final ip = urlParts[0];
+
+      print('-----------------------IP----------------------------');
+
+      print(ip);
       final port = int.parse(urlParts[1]);
 
       // Detect paper width
@@ -84,10 +90,11 @@ class ReceiptPrinterMobile {
 
       final data = await _generateKOTData(
         // Add await here
-        orderId: orderId,
-        orderType: orderType,
-        items: items,
+        orderId: orderResponse.order?.id.toString() ?? '123',
+        orderType: orderResponse.order?.orderType ?? 'Eat In',
+        items: orderResponse.order?.items,
         paperWidth: paperWidth,
+        customerName: orderResponse.order?.customerName,
       );
       await _sendToPrinter(ip, port, data);
 

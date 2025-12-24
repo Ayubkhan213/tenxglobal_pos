@@ -47,10 +47,9 @@ class LoginProvider extends ChangeNotifier {
           "api_key": "http://${AppConstants.ip}:8085/print",
         }),
       );
-      print('11111111111111111111111111');
+
       final businessInfo = BusinessInfoModel.fromJson(res);
       await BusinessInfoBoxService.saveBusinessInfo(businessInfo);
-      print('2222222222222222222222222222222222');
 
       // Safe snackbar using global key
       POSAgentApp.scaffoldMessengerKey.currentState?.showSnackBar(
