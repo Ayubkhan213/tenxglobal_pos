@@ -1,5 +1,6 @@
 // ignore_for_file: avoid_print
 
+import 'dart:io'; // ADD THIS LINE!
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:hive/hive.dart';
@@ -9,12 +10,9 @@ import 'package:provider/provider.dart';
 import 'package:tenxglobal_pos/core/services/server/server.dart';
 import 'package:tenxglobal_pos/login.dart';
 import 'package:tenxglobal_pos/models/business_info_model.dart';
-
 import 'package:tenxglobal_pos/models/printer_model.dart' hide Printer;
-
 import 'package:tenxglobal_pos/provider/login_provider.dart';
 import 'package:tenxglobal_pos/provider/printing_agant_provider.dart';
-
 import 'config.dart';
 
 void main() async {
@@ -26,11 +24,10 @@ void main() async {
   // Register all Hive adapters
   Hive.registerAdapter(BusinessInfoModelAdapter());
   Hive.registerAdapter(UserAdapter());
-  Hive.registerAdapter(BusinessAdapter()); // Register adapters
+  Hive.registerAdapter(BusinessAdapter());
   Hive.registerAdapter(PrinterAdapter());
 
   // Open boxes
-
   await Hive.openBox<BusinessInfoModel>('businessInfo');
 
   runApp(
@@ -45,12 +42,8 @@ void main() async {
 }
 
 class POSAgentApp extends StatelessWidget {
-  // final PrintServer printServer;
-
-  const POSAgentApp({
-    super.key,
-    // required this.printServer
-  });
+  const POSAgentApp({super.key});
+  
   static final navigatorKey = GlobalKey<NavigatorState>();
   static final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
@@ -83,8 +76,8 @@ class _MainShellState extends State<MainShell> {
   bool _serverStarted = false;
 
   // Keys for pages to force rebuild
-  final List<GlobalKey<_POSWebViewScreenState>> _pageKeys = [
-    GlobalKey<_POSWebViewScreenState>(),
+  final List<GlobalKey<POSWebViewScreenState>> _pageKeys = [
+    GlobalKey<POSWebViewScreenState>(),
   ];
 
   @override
@@ -95,7 +88,7 @@ class _MainShellState extends State<MainShell> {
       if (!_serverStarted) {
         _serverStarted = true;
         ServerServices.startLocalServer(context);
-        print(" Local server initialization started");
+        print("Local server initialization started");
       }
     });
   }
@@ -112,21 +105,8 @@ class _MainShellState extends State<MainShell> {
         child: IndexedStack(
           index: _currentIndex,
           children: [
-            RefreshIndicator(
-              onRefresh: () async {
-                // Force the WebView to reload by calling reload method
-                _pageKeys[0].currentState?.reloadWebView();
-                print("POS WebView refreshed!");
-              },
-              child: SingleChildScrollView(
-                physics: const NeverScrollableScrollPhysics(),
-                child: SizedBox(
-                  height: MediaQuery.of(context).size.height,
-                  child: POSWebViewScreen(key: _pageKeys[0]),
-                ),
-              ),
-            ),
-            _pages[1], // Printer tab, no refresh needed
+            POSWebViewScreen(key: _pageKeys[0]),
+            _pages[1],
           ],
         ),
       ),
@@ -155,12 +135,34 @@ class POSWebViewScreen extends StatefulWidget {
   const POSWebViewScreen({super.key});
 
   @override
-  State<POSWebViewScreen> createState() => _POSWebViewScreenState();
+  State<POSWebViewScreen> createState() => POSWebViewScreenState();
 }
 
-class _POSWebViewScreenState extends State<POSWebViewScreen> {
+class POSWebViewScreenState extends State<POSWebViewScreen> {
   InAppWebViewController? _webViewController;
+  late PullToRefreshController _pullToRefreshController;
   double _progress = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    _pullToRefreshController = PullToRefreshController(
+      settings: PullToRefreshSettings(
+        color: Colors.blueAccent,
+        backgroundColor: Colors.white,
+      ),
+      onRefresh: () async {
+        if (Platform.isAndroid) {
+          _webViewController?.reload();
+        } else if (Platform.isIOS) {
+          _webViewController?.loadUrl(
+            urlRequest: URLRequest(url: await _webViewController?.getUrl())
+          );
+        }
+      },
+    );
+  }
 
   // Call this to reload the WebView
   void reloadWebView() {
@@ -187,6 +189,7 @@ class _POSWebViewScreenState extends State<POSWebViewScreen> {
         children: [
           InAppWebView(
             initialUrlRequest: URLRequest(url: WebUri(AppConfig.posUrl)),
+            pullToRefreshController: _pullToRefreshController,
             initialSettings: InAppWebViewSettings(
               javaScriptEnabled: true,
               mediaPlaybackRequiresUserGesture: false,
@@ -206,12 +209,14 @@ class _POSWebViewScreenState extends State<POSWebViewScreen> {
             },
             onLoadStop: (controller, url) async {
               setState(() => _progress = 0);
+              _pullToRefreshController.endRefreshing();
             },
             onProgressChanged: (controller, progress) {
               setState(() => _progress = progress / 100);
             },
             onReceivedError: (controller, request, error) {
               print('WebView error: $error');
+              _pullToRefreshController.endRefreshing();
             },
           ),
           if (_progress > 0 && _progress < 1)
@@ -230,14 +235,6 @@ class _POSWebViewScreenState extends State<POSWebViewScreen> {
     );
   }
 }
-
-
-
-
-
-
-
-
 
 
 

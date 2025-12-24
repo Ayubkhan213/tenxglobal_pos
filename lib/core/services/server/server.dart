@@ -24,19 +24,24 @@ class ServerServices {
         print('${request.method} ${request.uri}');
 
         // =========================
-        // CORS HEADERS (FIRST)
+        // CORS HEADERS (MUST BE FIRST)
         // =========================
+        final origin = request.headers.value('origin');
+
+        if (origin != null) {
+          request.response.headers
+            ..set('Access-Control-Allow-Origin', origin)
+            ..set('Access-Control-Allow-Credentials', 'true');
+        }
+
         request.response.headers
-          ..set('Access-Control-Allow-Origin', '*')
-          ..set(
-            'Access-Control-Allow-Methods',
-            'GET, POST, PUT, DELETE, OPTIONS',
-          )
+          ..set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
           ..set(
             'Access-Control-Allow-Headers',
             'Origin, Content-Type, Accept, Authorization, X-Requested-With, X-CSRF-Token',
           )
-          ..set('Access-Control-Max-Age', '86400');
+          ..set('Content-Type', 'application/json');
+        //      ..set('Access-Control-Max-Age', '86400');
 
         // =========================
         // OPTIONS (CRITICAL)
