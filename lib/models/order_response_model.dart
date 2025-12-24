@@ -12,13 +12,15 @@ double? _toDoubleOrNull(dynamic v) {
 class OrderResponse {
   OrderData? order;
   String? type;
+  String? print;
 
-  OrderResponse({this.order, this.type});
+  OrderResponse({this.order, this.type, this.print});
 
   factory OrderResponse.fromJson(Map<String, dynamic> json) {
     return OrderResponse(
       order: json['order'] != null ? OrderData.fromJson(json['order']) : null,
       type: json['type'],
+      print: json['print'],
     );
   }
 }

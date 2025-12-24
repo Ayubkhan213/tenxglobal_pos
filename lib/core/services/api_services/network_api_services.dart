@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:tenxglobal_pos/core/constants/app_url.dart';
 import 'package:tenxglobal_pos/core/error/app_exception.dart';
 import 'package:tenxglobal_pos/core/services/api_services/base_api_services.dart';
 
@@ -29,6 +30,7 @@ class NetworkApiServices extends BaseApiServices {
   @override
   Future getPostApiResponse({required String url, body}) async {
     print(body);
+    print(url);
     dynamic responseJson;
     try {
       var response = await http
