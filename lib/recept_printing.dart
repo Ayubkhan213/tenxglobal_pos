@@ -1,17 +1,22 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter_thermal_printer/utils/printer.dart';
 import 'package:image/image.dart' as img;
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:provider/provider.dart';
+import 'package:flutter_thermal_printer/flutter_thermal_printer.dart';
 import 'package:tenxglobal_pos/core/services/dreawer_services/drawer_services.dart';
 import 'package:tenxglobal_pos/core/services/hive_services/business_info_service.dart';
 import 'package:tenxglobal_pos/models/order_response_model.dart';
 import 'package:tenxglobal_pos/provider/printing_agant_provider.dart';
 
 class ReceiptPrinterMobile {
+  // USB printer instance
+  static final _thermalPrinter = FlutterThermalPrinter.instance;
+
   /// ESC/POS Commands
   static final Uint8List _escInit = Uint8List.fromList([0x1B, 0x40]);
   static final Uint8List _escAlignCenter =
@@ -61,9 +66,6 @@ class ReceiptPrinterMobile {
   ///======================================================
   static Future<void> printKOT({
     required BuildContext context,
-    // required String orderId,
-    // String orderType = '',
-    // List<OrderItem>? items,
     required OrderResponse orderResponse,
   }) async {
     try {
@@ -76,27 +78,20 @@ class ReceiptPrinterMobile {
         throw Exception("KOT printer is not configured");
       }
 
-      final urlParts = provider.kotPrinter!.url.split(':');
-      final ip = urlParts[0];
-
-      print('-----------------------IP----------------------------');
-
-      print(ip);
-      final port = int.parse(urlParts[1]);
-
       // Detect paper width
       final paperWidth = _detectPaperWidth(provider.kotPrinter!.name);
       debugPrint("🖨️  Detected KOT paper width: $paperWidth chars");
 
       final data = await _generateKOTData(
-        // Add await here
         orderId: orderResponse.order?.id.toString() ?? '123',
         orderType: orderResponse.order?.orderType ?? 'Eat In',
         items: orderResponse.order?.items,
         paperWidth: paperWidth,
         customerName: orderResponse.order?.customerName,
       );
-      await _sendToPrinter(ip, port, data);
+
+      // Send to printer (handles both USB and Network)
+      await _sendToPrinter(provider.kotPrinter!.url, data);
 
       _showMessage(context, "✅ KOT printed successfully", Colors.green);
     } catch (e) {
@@ -122,10 +117,6 @@ class ReceiptPrinterMobile {
         throw Exception("Customer printer is not configured");
       }
 
-      final urlParts = provider.customerPrinter!.url.split(':');
-      final ip = urlParts[0];
-      final port = int.parse(urlParts[1]);
-
       // Detect paper width
       final paperWidth = _detectPaperWidth(provider.customerPrinter!.name);
       debugPrint("🖨️  Detected Receipt paper width: $paperWidth chars");
@@ -135,7 +126,8 @@ class ReceiptPrinterMobile {
         paperWidth: paperWidth,
       );
 
-      await _sendToPrinter(ip, port, data);
+      // Send to printer (handles both USB and Network)
+      await _sendToPrinter(provider.customerPrinter!.url, data);
 
       _showMessage(context, "✅ Receipt printed successfully", Colors.green);
     } catch (e) {
@@ -145,9 +137,29 @@ class ReceiptPrinterMobile {
   }
 
   ///======================================================
-  /// SEND DATA TO PRINTER VIA SOCKET (SILENT)
+  /// UNIFIED SEND TO PRINTER (USB + NETWORK)
   ///======================================================
-  static Future<void> _sendToPrinter(
+  static Future<void> _sendToPrinter(String printerUrl, Uint8List data) async {
+    // Check if it's a USB printer
+    if (printerUrl.startsWith('usb:')) {
+      await _sendToUSBPrinter(printerUrl, data);
+    } else {
+      // Network printer (format: "ip:port")
+      final parts = printerUrl.split(':');
+      if (parts.length == 2) {
+        final ip = parts[0];
+        final port = int.tryParse(parts[1]) ?? 9100;
+        await _sendToNetworkPrinter(ip, port, data);
+      } else {
+        throw ArgumentError('Invalid printer URL format: $printerUrl');
+      }
+    }
+  }
+
+  ///======================================================
+  /// SEND TO NETWORK PRINTER VIA SOCKET
+  ///======================================================
+  static Future<void> _sendToNetworkPrinter(
     String ip,
     int port,
     Uint8List data,
@@ -155,7 +167,7 @@ class ReceiptPrinterMobile {
     Socket? socket;
 
     try {
-      debugPrint("🖨️  Connecting to printer at $ip:$port");
+      debugPrint("🖨️  Connecting to network printer at $ip:$port");
 
       socket = await Socket.connect(
         ip,
@@ -163,7 +175,7 @@ class ReceiptPrinterMobile {
         timeout: const Duration(seconds: 5),
       );
 
-      debugPrint("✅ Connected to printer");
+      debugPrint("✅ Connected to network printer");
 
       socket.add(data);
       await socket.flush();
@@ -172,11 +184,99 @@ class ReceiptPrinterMobile {
 
       await Future.delayed(const Duration(milliseconds: 500));
     } catch (e) {
-      debugPrint("❌ Printer connection error: $e");
+      debugPrint("❌ Network printer connection error: $e");
       rethrow;
     } finally {
       socket?.destroy();
       debugPrint("🔌 Socket closed");
+    }
+  }
+
+  ///======================================================
+  /// SEND TO USB PRINTER
+  ///======================================================
+  static Future<void> _sendToUSBPrinter(
+    String usbId,
+    Uint8List data,
+  ) async {
+    try {
+      debugPrint("🔌 Sending to USB printer: $usbId");
+
+      // Parse USB identifier (format: "usb:vendorId:productId")
+      final parts = usbId.split(':');
+      if (parts.length < 2) {
+        throw ArgumentError('Invalid USB printer ID format: $usbId');
+      }
+
+      // Get available USB printers
+      final printers = await _getUSBPrinters();
+
+      if (printers.isEmpty) {
+        throw Exception('No USB printers found. Please check connection.');
+      }
+
+      // Find the matching printer
+      Printer? targetPrinter;
+
+      if (parts.length == 3) {
+        // Format: usb:vendorId:productId
+        final vendorId = parts[1];
+        final productId = parts[2];
+
+        targetPrinter = printers.firstWhere(
+          (p) => '${p.vendorId}' == vendorId && '${p.productId}' == productId,
+          orElse: () => printers.first, // Fallback to first USB printer
+        );
+      } else {
+        // If only "usb:vendorId" or malformed, use first available
+        targetPrinter = printers.first;
+      }
+
+      debugPrint("✅ Found USB printer: ${targetPrinter.name}");
+
+      // Print using flutter_thermal_printer
+      await _thermalPrinter.printData(
+        targetPrinter,
+        data,
+        longData: data.length > 1024, // Use longData for larger prints
+      );
+
+      debugPrint("✅ Data sent to USB printer (${data.length} bytes)");
+
+      // Small delay to ensure print completes
+      await Future.delayed(const Duration(milliseconds: 500));
+    } catch (e) {
+      debugPrint("❌ USB printer error: $e");
+      rethrow;
+    }
+  }
+
+  ///======================================================
+  /// GET AVAILABLE USB PRINTERS
+  ///======================================================
+  static Future<List<Printer>> _getUSBPrinters() async {
+    try {
+      List<Printer>? capturedPrinters;
+
+      final subscription = _thermalPrinter.devicesStream.listen((printers) {
+        capturedPrinters = printers;
+      });
+
+      try {
+        await _thermalPrinter.getPrinters(
+          connectionTypes: [ConnectionType.USB],
+        );
+
+        // Wait for stream to receive data
+        await Future.delayed(const Duration(milliseconds: 1000));
+
+        return capturedPrinters ?? [];
+      } finally {
+        await subscription.cancel();
+      }
+    } catch (e) {
+      debugPrint("⚠️ Error getting USB printers: $e");
+      return [];
     }
   }
 
@@ -231,9 +331,6 @@ class ReceiptPrinterMobile {
 
     buffer.add(_encode(_dashes(paperWidth)));
     buffer.add(_newLine());
-    // ============================================================
-    // ================= ORDER DETAILS =============================
-    // ============================================================
 
     buffer.add(_escAlignLeft);
 
@@ -278,10 +375,6 @@ class ReceiptPrinterMobile {
     buffer.add(_encode(_dashes(paperWidth)));
     buffer.add(_newLine());
 
-    // ============================================================
-    // ================= ITEMS TABLE ===============================
-    // ============================================================
-
     buffer.add(_escAlignLeft);
 
     final itemColWidth = paperWidth - 8;
@@ -300,33 +393,18 @@ class ReceiptPrinterMobile {
       for (var item in items) {
         final name = _truncate(item.title ?? 'Item', itemColWidth);
         final qty = '${item.quantity ?? 0}';
-// 1️ Print NAME (normal)
+
         buffer.add(_encode(_padRight(name, itemColWidth)));
-
-// 2️ Turn BOLD ON
         buffer.add(_escBold);
-
-// 3️ Print QTY (bold)
         buffer.add(_encode(_padCenter(qty, qtyColWidth)));
-
-// 4️ Turn BOLD OFF
         buffer.add(_escBoldOff);
-        //  Check removed ingredients
+
+        // Check removed ingredients
         if (item.removedIngredients != null &&
             item.removedIngredients!.isNotEmpty) {
-          // Indent for "Remove"
-          // const removeIndent = ''; // 4 spaces
-
-          // buffer.add(_encode('$removeIndent Remove:'));
-
-          // buffer.add(_newLine());
-
-          // Indent further for each removed ingredient
-          const ingredientIndent = ''; // 8 spaces
+          const ingredientIndent = '';
           for (var ing in item.removedIngredients!) {
             buffer.add(_encode('$ingredientIndent Remove ${ing.name}'));
-
-            // buffer.add(_newLine());
           }
         }
 
@@ -356,12 +434,8 @@ class ReceiptPrinterMobile {
     return buffer.toBytes();
   }
 
-// ============================================================
-// ================= HELPER FUNCTIONS =========================
-// ============================================================
-
   ///======================================================
-  /// GENERATE CUSTOMER RECEIPT ESC/POS DATA - MATCHES PDF DESIGN
+  /// GENERATE CUSTOMER RECEIPT ESC/POS DATA
   ///======================================================
   static Future<Uint8List> _generateReceiptData(
     OrderResponse orderResponse, {
@@ -371,51 +445,7 @@ class ReceiptPrinterMobile {
     final order = orderResponse.order;
     final buffer = BytesBuilder();
 
-    //buffer.add(_escInit);
     buffer.add([0x1B, 0x32]);
-    // ============================================================
-    // =============== PRINT LOGO AT START =========================
-    // ============================================================
-    // if (businessInfo?.business.logoUrl != null &&
-    //     businessInfo!.business.logoUrl!.trim().isNotEmpty) {
-    //   try {
-    //     // Load image from URL
-    //     final ByteData imgBytes = await NetworkAssetBundle(
-    //       Uri.parse(businessInfo.business.logoUrl!),
-    //     ).load("");
-
-    //     final Uint8List imageData = imgBytes.buffer.asUint8List();
-
-    //     // Decode image
-    //     final img.Image? decodedImg = img.decodeImage(imageData);
-
-    //     if (decodedImg != null) {
-    //       // 🔥 Resize logo (WIDTH = 150px for small logo)
-    //       final img.Image resized = img.copyResize(
-    //         decodedImg,
-    //         width: 150, // change to 120 / 100 if you want even smaller
-    //         height: null,
-    //       );
-
-    //       final Generator generator = Generator(
-    //         paperWidth == _width80mm ? PaperSize.mm80 : PaperSize.mm58,
-    //         await CapabilityProfile.load(),
-    //       );
-
-    //       // Convert resized image to ESC/POS
-    //       final List<int> bytes = generator.image(resized);
-
-    //       buffer.add(bytes);
-    //       buffer.add(generator.reset());
-    //     }
-    //   } catch (e) {
-    //     debugPrint("Logo loading failed: $e");
-    //   }
-    // }
-
-    // ============================================================
-    // ================= BUSINESS HEADER ===========================
-    // ============================================================
 
     buffer.add(_escAlignCenter);
     buffer.add(_escAlignCenter);
@@ -434,6 +464,7 @@ class ReceiptPrinterMobile {
     buffer.add(_newLine());
     buffer.add(_escSizeNormal);
     buffer.add(_escBoldOff);
+
     // Business Name (Bold)
     buffer.add(paperWidth >= _width58mm ? _escSizeLarge : _escSizeNormal);
     buffer.add(_escBold);
@@ -446,10 +477,6 @@ class ReceiptPrinterMobile {
     buffer.add(_escSizeNormal);
     buffer.add(_escBoldOff);
 
-    // Order ID
-    // buffer.add(_encode('Order ID: #${order?.id ?? 'N/A'}'));
-    // buffer.add(_newLine());
-
     // Date
     buffer.add(
       _encode(
@@ -460,10 +487,6 @@ class ReceiptPrinterMobile {
 
     buffer.add(_encode(_dashes(paperWidth)));
     buffer.add(_newLine());
-
-    // ============================================================
-    // ================= ORDER DETAILS =============================
-    // ============================================================
 
     buffer.add(_escAlignLeft);
 
@@ -478,18 +501,6 @@ class ReceiptPrinterMobile {
       ),
     );
     buffer.add(_newLine());
-
-    // Order Type
-    // buffer.add(
-    //   _encode(
-    //     _formatLabelValueRight(
-    //       'Order Type:',
-    //       order?.orderType ?? 'Eatin',
-    //       paperWidth,
-    //     ),
-    //   ),
-    // );
-    // buffer.add(_newLine());
 
     // Customer Name
     buffer.add(
@@ -520,10 +531,6 @@ class ReceiptPrinterMobile {
     buffer.add(_encode(_dashes(paperWidth)));
     buffer.add(_newLine());
 
-    // ============================================================
-    // ================= ITEMS TABLE ===============================
-    // ============================================================
-
     buffer.add(_escAlignLeft);
 
     final itemColWidth = paperWidth - 18;
@@ -545,34 +552,20 @@ class ReceiptPrinterMobile {
         final name = _truncate(item.title ?? 'Item', itemColWidth);
         final qty = '${item.quantity ?? 0}';
         final price = '£${(item.price ?? 0).toStringAsFixed(2)}';
-        // 1️ Print NAME (normal)
+
         buffer.add(_encode(_padRight(name, itemColWidth)));
-
-        // 2️ Turn BOLD ON
         buffer.add(_escBold);
-
-        // 3️ Print QTY + PRICE (bold)
         buffer.add(_encode(
           _padCenter(qty, qtyColWidth) + _padLeft(price, priceColWidth),
         ));
-
-        // 4️ Turn BOLD OFF
         buffer.add(_escBoldOff);
-        //  Check removed ingredients
+
+        // Check removed ingredients
         if (item.removedIngredients != null &&
             item.removedIngredients!.isNotEmpty) {
-          // Indent for "Remove"
-          // const removeIndent = ''; // 4 spaces
-
-          // buffer.add(_encode('$removeIndent Remove'));
-
-          // buffer.add(_newLine());
-
-          // Indent further for each removed ingredient
-          const ingredientIndent = ''; // 8 spaces
+          const ingredientIndent = '';
           for (var ing in item.removedIngredients!) {
             buffer.add(_encode('$ingredientIndent Remove ${ing.name}'));
-
             buffer.add(_newLine());
           }
         }
@@ -586,10 +579,6 @@ class ReceiptPrinterMobile {
     buffer.add(_encode(_dashes(paperWidth)));
     buffer.add(_newLine());
 
-    // ============================================================
-    // ================= TOTALS ===================================
-    // ============================================================
-
     buffer.add(_escAlignLeft);
 
     final subtotal = order?.subTotal ?? 0;
@@ -598,6 +587,7 @@ class ReceiptPrinterMobile {
     final promoDiscount = order?.promoDiscount ?? 0;
     final deliveryCharges = order?.deliveryCharges ?? 0;
     final total = order?.totalAmount ?? 0;
+
     printLabelValueRightBold(
       buffer: buffer,
       label: 'Order Price:',
@@ -630,7 +620,6 @@ class ReceiptPrinterMobile {
         encode: _encode,
         totalWidth: paperWidth,
       );
-
       buffer.add(_newLine());
     }
 
@@ -644,7 +633,6 @@ class ReceiptPrinterMobile {
         encode: _encode,
         totalWidth: paperWidth,
       );
-
       buffer.add(_newLine());
     }
 
@@ -658,7 +646,6 @@ class ReceiptPrinterMobile {
         encode: _encode,
         totalWidth: paperWidth,
       );
-
       buffer.add(_newLine());
     }
 
@@ -672,9 +659,9 @@ class ReceiptPrinterMobile {
         encode: _encode,
         totalWidth: paperWidth,
       );
-
       buffer.add(_newLine());
     }
+
     printLabelValueRightBold(
       buffer: buffer,
       label: 'Net Price:',
@@ -684,6 +671,7 @@ class ReceiptPrinterMobile {
       encode: _encode,
       totalWidth: paperWidth,
     );
+
     printLabelValueRightBold(
       buffer: buffer,
       label: 'Paid Amount:',
@@ -710,11 +698,7 @@ class ReceiptPrinterMobile {
     buffer.add(_encode(_dashes(paperWidth)));
     buffer.add(_newLine());
     buffer.add(_escBold);
-    buffer.add(
-      _encode(
-        'VAT/ Taxes',
-      ),
-    );
+    buffer.add(_encode('VAT/ Taxes'));
     buffer.add(_escBoldOff);
     buffer.add(_newLine());
 
@@ -732,11 +716,8 @@ class ReceiptPrinterMobile {
     buffer.add(_encode(_dashes(paperWidth)));
     buffer.add(_newLine());
 
-    // ============================================================
-    // ================= FOOTER ===================================
-    // ============================================================
-
     buffer.add(_escAlignCenter);
+
     // Phone
     if (businessInfo?.business.phone != null) {
       buffer.add(_encode(
@@ -785,21 +766,11 @@ class ReceiptPrinterMobile {
   }
 
   static Uint8List _newLine2() {
-    // 0x0A is the ASCII value for Line Feed (LF),
-    // which is the standard new line character on Unix-like systems (and the internet).
-    // 0x0D is the ASCII value for Carriage Return (CR).
-    // CR + LF (0x0D, 0x0A) is the standard new line for Windows/DOS.
-
-    // If you need a more explicit/common sequence, use CR+LF:
     return Uint8List.fromList([0x0D, 0x0A]);
-
-    // Alternatively, just a single Line Feed (LF) is often sufficient:
-    // return Uint8List.fromList([0x0A]);
   }
 
   static String _dashes(int count) => '-' * count;
-  static String _equals(int count) => '=' * count;
-  // static String _dots(int count) => '.' * count;
+
   static void printLabelValueRightBold({
     required BytesBuilder buffer,
     required String label,
@@ -810,24 +781,16 @@ class ReceiptPrinterMobile {
     required List<int> Function(String) encode,
   }) {
     final spaceCount = totalWidth - label.length - value.length;
-
-    // Label (NORMAL)
-    buffer.add(
-      encode(label + (' ' * (spaceCount > 0 ? spaceCount : 1))),
-    );
-
-    // Value (BOLD)
+    buffer.add(encode(label + (' ' * (spaceCount > 0 ? spaceCount : 1))));
     buffer.add(escBoldOn);
     buffer.add(encode(value));
     buffer.add(escBoldOff);
   }
 
-  /// Format label with right-aligned value (like in the receipt image)
   static String _formatLabelValueRight(
       String label, String value, int totalWidth) {
     final availableSpace = totalWidth - label.length - value.length;
     if (availableSpace <= 0) {
-      // If no space, truncate value
       final maxValueLen = totalWidth - label.length - 1;
       return '$label ${maxValueLen > 0 ? _truncate(value, maxValueLen) : ''}';
     }
@@ -857,7 +820,6 @@ class ReceiptPrinterMobile {
     return text.substring(0, maxLength - 3) + '...';
   }
 
-  /// Word wrap text to fit within width
   static List<String> _wrapText(String text, int maxWidth) {
     if (text.length <= maxWidth) return [text];
 
