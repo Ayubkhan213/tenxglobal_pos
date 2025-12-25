@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import 'package:tenxglobal_pos/provider/printing_agant_provider.dart';
 
 class PrinterSelectionWidget extends StatefulWidget {
@@ -19,7 +18,14 @@ class _PrinterSelectionWidgetState extends State<PrinterSelectionWidget> {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(20),
-                child: CircularProgressIndicator(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 12),
+                    Text('Scanning for printers...'),
+                  ],
+                ),
               ),
             );
           }
@@ -28,7 +34,7 @@ class _PrinterSelectionWidgetState extends State<PrinterSelectionWidget> {
           final customerPrinter = provider.customerPrinter;
           final kotPrinter = provider.kotPrinter;
 
-          // ✅ FIX: Remove duplicates by URL and create combined list
+          // ✅ Remove duplicates by URL and create combined list
           final uniquePrinters = <String, dynamic>{};
           for (var printer in available) {
             uniquePrinters[printer.url] = printer;
@@ -46,7 +52,13 @@ class _PrinterSelectionWidgetState extends State<PrinterSelectionWidget> {
 
           final printerList = uniquePrinters.values.toList();
 
-          // ✅ FIX: Validate selected values exist in list
+          // Separate printers by type
+          final networkPrinters =
+              printerList.where((p) => !p.url.startsWith('usb:')).toList();
+          final usbPrinters =
+              printerList.where((p) => p.url.startsWith('usb:')).toList();
+
+          // ✅ Validate selected values exist in list
           final customerValue = customerPrinter != null &&
                   uniquePrinters.containsKey(customerPrinter.url)
               ? customerPrinter.url
@@ -115,36 +127,158 @@ class _PrinterSelectionWidgetState extends State<PrinterSelectionWidget> {
                             provider.selectCustomerPrinter(null);
                           },
                         ),
-                        const Divider(height: 1),
-                        // Printer options
-                        ...printerList.map((printer) {
-                          return Column(
-                            children: [
-                              RadioListTile<String?>(
-                                title: Text(
-                                  printer.name,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w500),
-                                ),
-                                subtitle: Text(
-                                  printer.location ?? 'Unknown location',
+
+                        // USB Printers Section
+                        if (usbPrinters.isNotEmpty) ...[
+                          const Divider(height: 1),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            color: Colors.blue.shade50,
+                            child: Row(
+                              children: [
+                                Icon(Icons.usb,
+                                    size: 16, color: Colors.blue.shade700),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "USB Printers",
                                   style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.blue.shade700,
                                     fontSize: 12,
-                                    color: Colors.grey.shade600,
                                   ),
                                 ),
-                                value: printer.url,
-                                groupValue: customerValue,
-                                dense: true,
-                                onChanged: (value) {
-                                  provider.selectCustomerPrinter(printer);
-                                },
-                              ),
-                              if (printer != printerList.last)
-                                const Divider(height: 1),
-                            ],
-                          );
-                        }).toList(),
+                              ],
+                            ),
+                          ),
+                          ...usbPrinters.map((printer) {
+                            return Column(
+                              children: [
+                                RadioListTile<String?>(
+                                  title: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          printer.name,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w500),
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue.shade100,
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          "USB",
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.blue.shade700,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  subtitle: Text(
+                                    printer.location ?? 'USB Connected',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  value: printer.url,
+                                  groupValue: customerValue,
+                                  dense: true,
+                                  onChanged: (value) {
+                                    provider.selectCustomerPrinter(printer);
+                                  },
+                                ),
+                                if (printer != usbPrinters.last)
+                                  const Divider(height: 1),
+                              ],
+                            );
+                          }).toList(),
+                        ],
+
+                        // Network Printers Section
+                        if (networkPrinters.isNotEmpty) ...[
+                          const Divider(height: 1),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            color: Colors.green.shade50,
+                            child: Row(
+                              children: [
+                                Icon(Icons.wifi,
+                                    size: 16, color: Colors.green.shade700),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "Network Printers",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.green.shade700,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          ...networkPrinters.map((printer) {
+                            return Column(
+                              children: [
+                                RadioListTile<String?>(
+                                  title: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          printer.name,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w500),
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.shade100,
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          "Network",
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.green.shade700,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  subtitle: Text(
+                                    printer.location ?? 'Unknown location',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  value: printer.url,
+                                  groupValue: customerValue,
+                                  dense: true,
+                                  onChanged: (value) {
+                                    provider.selectCustomerPrinter(printer);
+                                  },
+                                ),
+                                if (printer != networkPrinters.last)
+                                  const Divider(height: 1),
+                              ],
+                            );
+                          }).toList(),
+                        ],
                       ],
                     ),
                   ),
@@ -174,122 +308,163 @@ class _PrinterSelectionWidgetState extends State<PrinterSelectionWidget> {
                             provider.selectKOTPrinter(null);
                           },
                         ),
-                        const Divider(height: 1),
-                        // Printer options
-                        ...printerList.map((printer) {
-                          return Column(
-                            children: [
-                              RadioListTile<String?>(
-                                title: Text(
-                                  printer.name,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w500),
-                                ),
-                                subtitle: Text(
-                                  printer.location ?? 'Unknown location',
+
+                        // USB Printers Section
+                        if (usbPrinters.isNotEmpty) ...[
+                          const Divider(height: 1),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            color: Colors.blue.shade50,
+                            child: Row(
+                              children: [
+                                Icon(Icons.usb,
+                                    size: 16, color: Colors.blue.shade700),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "USB Printers",
                                   style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.blue.shade700,
                                     fontSize: 12,
-                                    color: Colors.grey.shade600,
                                   ),
                                 ),
-                                value: printer.url,
-                                groupValue: kotValue,
-                                dense: true,
-                                onChanged: (value) {
-                                  provider.selectKOTPrinter(printer);
-                                },
-                              ),
-                              if (printer != printerList.last)
-                                const Divider(height: 1),
-                            ],
-                          );
-                        }).toList(),
+                              ],
+                            ),
+                          ),
+                          ...usbPrinters.map((printer) {
+                            return Column(
+                              children: [
+                                RadioListTile<String?>(
+                                  title: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          printer.name,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w500),
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue.shade100,
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          "USB",
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.blue.shade700,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  subtitle: Text(
+                                    printer.location ?? 'USB Connected',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  value: printer.url,
+                                  groupValue: kotValue,
+                                  dense: true,
+                                  onChanged: (value) {
+                                    provider.selectKOTPrinter(printer);
+                                  },
+                                ),
+                                if (printer != usbPrinters.last)
+                                  const Divider(height: 1),
+                              ],
+                            );
+                          }).toList(),
+                        ],
+
+                        // Network Printers Section
+                        if (networkPrinters.isNotEmpty) ...[
+                          const Divider(height: 1),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            color: Colors.green.shade50,
+                            child: Row(
+                              children: [
+                                Icon(Icons.wifi,
+                                    size: 16, color: Colors.green.shade700),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "Network Printers",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.green.shade700,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          ...networkPrinters.map((printer) {
+                            return Column(
+                              children: [
+                                RadioListTile<String?>(
+                                  title: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          printer.name,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w500),
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.shade100,
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          "Network",
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.green.shade700,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  subtitle: Text(
+                                    printer.location ?? 'Unknown location',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  value: printer.url,
+                                  groupValue: kotValue,
+                                  dense: true,
+                                  onChanged: (value) {
+                                    provider.selectKOTPrinter(printer);
+                                  },
+                                ),
+                                if (printer != networkPrinters.last)
+                                  const Divider(height: 1),
+                              ],
+                            );
+                          }).toList(),
+                        ],
                       ],
                     ),
                   ),
 
-                  // // Customer Printer Dropdown
-                  // const Text(
-                  //   "Customer Receipt Printer",
-                  //   style: TextStyle(fontWeight: FontWeight.bold),
-                  // ),
-                  // const SizedBox(height: 8),
-                  // DropdownButtonFormField<String>(
-                  //   decoration: const InputDecoration(
-                  //     border: OutlineInputBorder(),
-                  //     isDense: true,
-                  //   ),
-                  //   value: customerValue,
-                  //   items: [
-                  //     const DropdownMenuItem<String>(
-                  //       value: null,
-                  //       child: Text("Select Customer Printer"),
-                  //     ),
-                  //     //  FIX: Use unique printer list
-                  //     ...printerList.map(
-                  //       (p) => DropdownMenuItem(
-                  //         value: p.url,
-                  //         child: Text(
-                  //           "${p.name} • ${p.location ?? 'Unknown'}",
-                  //           overflow: TextOverflow.ellipsis,
-                  //         ),
-                  //       ),
-                  //     ),
-                  //   ],
-                  //   onChanged: (url) {
-                  //     if (url == null) {
-                  //       provider.selectCustomerPrinter(null);
-                  //     } else {
-                  //       final printer = printerList.firstWhere(
-                  //         (p) => p.url == url,
-                  //         orElse: () => printerList.first,
-                  //       );
-                  //       provider.selectCustomerPrinter(printer);
-                  //     }
-                  //   },
-                  // ),
-                  // const SizedBox(height: 16),
-                  // // KOT Printer Dropdown
-                  // const Text(
-                  //   "Kitchen Order Ticket (KOT) Printer",
-                  //   style: TextStyle(fontWeight: FontWeight.bold),
-                  // ),
-                  // const SizedBox(height: 8),
-                  // DropdownButtonFormField<String>(
-                  //   decoration: const InputDecoration(
-                  //     border: OutlineInputBorder(),
-                  //     isDense: true,
-                  //   ),
-                  //   value: kotValue,
-                  //   items: [
-                  //     const DropdownMenuItem<String>(
-                  //       value: null,
-                  //       child: Text("Select KOT Printer"),
-                  //     ),
-                  //     // ✅ FIX: Use unique printer list
-                  //     ...printerList.map(
-                  //       (p) => DropdownMenuItem(
-                  //         value: p.url,
-                  //         child: Text(
-                  //           "${p.name} • ${p.location ?? 'Unknown'}",
-                  //           overflow: TextOverflow.ellipsis,
-                  //         ),
-                  //       ),
-                  //     ),
-                  //   ],
-                  //   onChanged: (url) {
-                  //     if (url == null) {
-                  //       provider.selectKOTPrinter(null);
-                  //     } else {
-                  //       final printer = printerList.firstWhere(
-                  //         (p) => p.url == url,
-                  //         orElse: () => printerList.first,
-                  //       );
-                  //       provider.selectKOTPrinter(printer);
-                  //     }
-                  //   },
-                  // ),
-                  // const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
                   // Refresh button with printer count
                   Row(
@@ -305,7 +480,7 @@ class _PrinterSelectionWidgetState extends State<PrinterSelectionWidget> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        "${printerList.length} printer(s) found",
+                        "${usbPrinters.length} USB • ${networkPrinters.length} Network",
                         style: TextStyle(
                           color: Colors.grey.shade600,
                           fontSize: 12,
@@ -320,26 +495,36 @@ class _PrinterSelectionWidgetState extends State<PrinterSelectionWidget> {
                       margin: const EdgeInsets.only(top: 16),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.green.shade600,
+                        //  color: Colors.green.shade50,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.green),
+                        border: Border.all(color: Colors.green.shade200),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            "Currently Selected:",
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                          Row(
+                            children: [
+                              Icon(Icons.check_circle,
+                                  size: 16, color: Colors.green.shade700),
+                              const SizedBox(width: 8),
+                              Text(
+                                "Currently Selected:",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green.shade700,
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 8),
                           if (customerPrinter != null)
                             Text(
-                              "📄 Customer: ${customerPrinter.name} (${customerPrinter.location ?? customerPrinter.url})",
+                              "📄 Customer: ${customerPrinter.name} ${customerPrinter.url.startsWith('usb:') ? '(USB)' : '(${customerPrinter.location ?? customerPrinter.url})'}",
                               style: const TextStyle(fontSize: 13),
                             ),
                           if (kotPrinter != null)
                             Text(
-                              "🍳 KOT: ${kotPrinter.name} (${kotPrinter.location ?? kotPrinter.url})",
+                              "🍳 KOT: ${kotPrinter.name} ${kotPrinter.url.startsWith('usb:') ? '(USB)' : '(${kotPrinter.location ?? kotPrinter.url})'}",
                               style: const TextStyle(fontSize: 13),
                             ),
                         ],

@@ -65,7 +65,7 @@ class ServerServices {
             final body = await utf8.decoder.bind(request).join();
             final data = jsonDecode(body);
             final res = OrderResponse.fromJson(data);
-
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ${data}");
             if (res.order == null) {
               _jsonResponse(request, {
                 'status': 'ERROR',
@@ -111,6 +111,7 @@ class ServerServices {
             // KOT RECEIPT
             // =========================
             if (res.type == 'KOT') {
+              print("Kot priting Yes>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
               try {
                 await ReceiptPrinterMobile.printKOT(
                   context: context,

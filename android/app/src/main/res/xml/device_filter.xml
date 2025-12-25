@@ -1,0 +1,4 @@
+<resources>
+    <!-- Allow any USB device -->
+    <usb-device />
+</resources>
