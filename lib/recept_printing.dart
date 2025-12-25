@@ -405,11 +405,20 @@ class ReceiptPrinterMobile {
           const ingredientIndent = '';
           for (var ing in item.removedIngredients!) {
             buffer.add(_encode('$ingredientIndent Remove ${ing.name}'));
+            buffer.add(_newLine());
           }
         }
 
         buffer.add(_newLine());
-
+        if (item.addons != null && item.addons!.isNotEmpty) {
+          const addonsIndent = '';
+          for (var ing in item.addons!) {
+            buffer.add(_encode(
+                '$addonsIndent Addon ${ing.name} ${ing.quantity ?? ''}'));
+            buffer.add(_newLine());
+          }
+        }
+        buffer.add(_newLine());
         // Notes if present
         if (item.note != null && item.note!.isNotEmpty) {
           final noteLines = _wrapText(
