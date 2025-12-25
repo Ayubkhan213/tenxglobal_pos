@@ -158,7 +158,7 @@ class OrderItem {
   double? taxAmount;
   int? variantId;
   String? variantName;
-  List<dynamic>? addons;
+  List<Addon>? addons;
   double? saleDiscountPerItem;
   List<RemovedIngredient>? removedIngredients;
 
@@ -181,6 +181,8 @@ class OrderItem {
   });
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
+    print(
+        "addon list is -------------------------------------------------------------------  ${json['addons']}");
     return OrderItem(
       productId: json['product_id'],
       title: json['title'],
@@ -195,7 +197,9 @@ class OrderItem {
       itemKitchenNote: json['item_kitchen_note'],
       variantId: json['variant_id'],
       variantName: json['variant_name'],
-      addons: json['addons'],
+      addons: (json['addons'] as List)
+          .map((addon) => Addon.fromJson(addon))
+          .toList(),
       removedIngredients: (json['removed_ingredients'] as List?)
           ?.map((e) => RemovedIngredient.fromJson(e))
           .toList(),
@@ -299,4 +303,34 @@ class RemovedIngredient {
       name: json['name']?.toString() ?? '',
     );
   }
+}
+
+class Addon {
+  final int id;
+  final String name;
+  final double price;
+  final double? quantity;
+
+  Addon({
+    required this.id,
+    required this.name,
+    required this.price,
+    this.quantity,
+  });
+
+  factory Addon.fromJson(Map<String, dynamic> json) {
+    return Addon(
+      id: json['id'],
+      name: json['name'],
+      price: (json['price'] as num).toDouble(),
+      //   quantity: (json['quantity'] as num).toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'price': price,
+        'quantity': quantity,
+      };
 }
