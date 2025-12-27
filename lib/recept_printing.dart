@@ -560,7 +560,7 @@ class ReceiptPrinterMobile {
       for (var item in order.items!) {
         final name = _truncate(item.title ?? 'Item', itemColWidth);
         final qty = '${item.quantity ?? 0}';
-        final price = '£${(item.price ?? 0).toStringAsFixed(2)}';
+        final price = '${(item.price ?? 0).toStringAsFixed(2)}';
 
         buffer.add(_encode(_padRight(name, itemColWidth)));
         buffer.add(_escBold);
@@ -600,7 +600,7 @@ class ReceiptPrinterMobile {
     printLabelValueRightBold(
       buffer: buffer,
       label: 'Order Price:',
-      value: '£${orderResponse.order?.subTotal?.toStringAsFixed(2)}',
+      value: '${orderResponse.order?.subTotal?.toStringAsFixed(2)}',
       escBoldOn: _escBold,
       escBoldOff: _escBoldOff,
       encode: _encode,
@@ -610,7 +610,7 @@ class ReceiptPrinterMobile {
     printLabelValueRightBold(
       buffer: buffer,
       label: 'Services Charges:',
-      value: '£${orderResponse.order?.serviceCharges?.toStringAsFixed(2)}',
+      value: '${orderResponse.order?.serviceCharges?.toStringAsFixed(2)}',
       escBoldOn: _escBold,
       escBoldOff: _escBoldOff,
       encode: _encode,
@@ -623,7 +623,7 @@ class ReceiptPrinterMobile {
       printLabelValueRightBold(
         buffer: buffer,
         label: 'Discount:',
-        value: '-£${approvedDiscount.toStringAsFixed(2)}',
+        value: '-${approvedDiscount.toStringAsFixed(2)}',
         escBoldOn: _escBold,
         escBoldOff: _escBoldOff,
         encode: _encode,
@@ -636,7 +636,7 @@ class ReceiptPrinterMobile {
       printLabelValueRightBold(
         buffer: buffer,
         label: 'Sale:',
-        value: '-£${salesDiscount.toStringAsFixed(2)}',
+        value: '-${salesDiscount.toStringAsFixed(2)}',
         escBoldOn: _escBold,
         escBoldOff: _escBoldOff,
         encode: _encode,
@@ -649,7 +649,7 @@ class ReceiptPrinterMobile {
       printLabelValueRightBold(
         buffer: buffer,
         label: 'Promo Discount:',
-        value: '-£${promoDiscount.toStringAsFixed(2)}',
+        value: '-${promoDiscount.toStringAsFixed(2)}',
         escBoldOn: _escBold,
         escBoldOff: _escBoldOff,
         encode: _encode,
@@ -674,7 +674,7 @@ class ReceiptPrinterMobile {
     printLabelValueRightBold(
       buffer: buffer,
       label: 'Net Price:',
-      value: '£${total.toStringAsFixed(2)}',
+      value: '${total.toStringAsFixed(2)}',
       escBoldOn: _escBold,
       escBoldOff: _escBoldOff,
       encode: _encode,
@@ -684,7 +684,7 @@ class ReceiptPrinterMobile {
     printLabelValueRightBold(
       buffer: buffer,
       label: 'Paid Amount:',
-      value: '£${total.toStringAsFixed(2)}',
+      value: '${total.toStringAsFixed(2)}',
       escBoldOn: _escBold,
       escBoldOff: _escBoldOff,
       encode: _encode,
@@ -714,7 +714,7 @@ class ReceiptPrinterMobile {
     printLabelValueRightBold(
       buffer: buffer,
       label: 'Total VAT',
-      value: '£${orderResponse.order?.tax?.toStringAsFixed(2)}',
+      value: '${orderResponse.order?.tax?.toStringAsFixed(2)}',
       escBoldOn: _escBold,
       escBoldOff: _escBoldOff,
       encode: _encode,
@@ -732,12 +732,6 @@ class ReceiptPrinterMobile {
       buffer.add(_encode(
         _truncate('Tel: ${businessInfo!.business.phone}', paperWidth),
       ));
-      buffer.add(_newLine());
-    }
-
-    if (businessInfo?.user.email != null &&
-        businessInfo!.user.email!.isNotEmpty) {
-      buffer.add(_encode('Email: ${businessInfo.user.email}'));
       buffer.add(_newLine());
     }
 

@@ -65,7 +65,10 @@ class ServerServices {
             final body = await utf8.decoder.bind(request).join();
             final data = jsonDecode(body);
             final res = OrderResponse.fromJson(data);
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ${data}");
+            print(
+                ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>   its full response  >>>>>>>>>>>>>>>>> ${data}");
+            print(
+                ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>   its full orders  >>>>>>>>>>>>>>>>> ${res.order}");
             if (res.order == null) {
               _jsonResponse(request, {
                 'status': 'ERROR',
@@ -84,13 +87,33 @@ class ServerServices {
             // =========================
             // CASH DRAWER (UNCHANGED)
             // =========================
-            if (res.order?.paymentType == 'cash' &&
-                res.type == 'customer' &&
-                provider.customerPrinter != null) {
-              final ip = provider.customerPrinter!.url.split(':').first;
-              await CashDrawerService.open(ip: ip);
-            }
+            print("res.order?.paymentType  ${res.order?.paymentMethod}");
+            print("customerPrinter!.url ${provider.customerPrinter!.url}");
+            print("res.type ${res.type}");
+            // if (res.type == 'customer') {
+            //   final ip = provider.customerPrinter!.url.split(':').first;
 
+            //   print("the ip is >>>>>>>>>>>>>>>>>>>>>  ${ip}");
+            //   await CashDrawerService.open(ip: ip);
+            // }
+            if (res.type == 'customer') {
+              final printerUrl = provider.customerPrinter!.url;
+
+              // Check if it's a LAN printer (has IP:port format)
+              if (printerUrl.startsWith('usb')) {
+                print("Opening drawer via USB: $printerUrl");
+                await CashDrawerService.open(
+                  ip: null,
+                  usbPrinterName: printerUrl,
+                );
+              }
+              // USB printer (just printer name)
+              else {
+                final ip = printerUrl.split(':').first;
+                print("Opening drawer via LAN IP: $ip");
+                await CashDrawerService.open(ip: ip);
+              }
+            }
             // =========================
             // CUSTOMER RECEIPT
             // =========================

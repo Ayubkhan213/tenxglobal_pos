@@ -131,13 +131,13 @@ class OrderData {
       approvedDiscountDetails: json['approved_discount_details'],
       promoDiscount: _toDouble(json['promo_discount']),
       appliedPromos: json['applied_promos'],
-      orderType: json['order_type'],
+      orderType: json['order_type']?? 'Cash',
       tableNumber: json['table_number']?.toString(),
       paymentMethod: json['payment_method'],
       autoPrintKot: json['auto_print_kot'],
       cashReceived: _toDouble(json['cash_received']),
       change: _toDouble(json['change']),
-      paymentType: json['payment_type'],
+      paymentType: json['payment_type']?? 'Cash',
       cashAmount: _toDoubleOrNull(json['cash_amount']),
       cardAmount: _toDoubleOrNull(json['card_amount']),
     );
@@ -197,9 +197,12 @@ class OrderItem {
       itemKitchenNote: json['item_kitchen_note'],
       variantId: json['variant_id'],
       variantName: json['variant_name'],
-      addons: (json['addons'] as List)
-          .map((addon) => Addon.fromJson(addon))
-          .toList(),
+      // FIX: Handle null addons list
+      addons: json['addons'] != null
+          ? (json['addons'] as List)
+              .map((addon) => Addon.fromJson(addon))
+              .toList()
+          : [], // Return empty list if null
       removedIngredients: (json['removed_ingredients'] as List?)
           ?.map((e) => RemovedIngredient.fromJson(e))
           .toList(),
