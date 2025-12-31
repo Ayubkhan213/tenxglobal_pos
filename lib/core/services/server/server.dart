@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -65,8 +66,8 @@ class ServerServices {
             final body = await utf8.decoder.bind(request).join();
             final data = jsonDecode(body);
             final res = OrderResponse.fromJson(data);
-            print(
-                ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>   its full response  >>>>>>>>>>>>>>>>> ${data}");
+
+            log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>   its full response  >>>>>>>>>>>>>>>>> ${data}");
             print(
                 ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>   its full orders  >>>>>>>>>>>>>>>>> ${res.order}");
             if (res.order == null) {
@@ -136,10 +137,12 @@ class ServerServices {
             if (res.type == 'KOT') {
               print("Kot priting Yes>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
               try {
+                print(res.order?.orderType);
                 await ReceiptPrinterMobile.printKOT(
                   context: context,
                   orderResponse: res,
                 );
+
                 successMessages.add('KOT printed successfully');
                 anyPrintSuccess = true;
               } catch (e) {

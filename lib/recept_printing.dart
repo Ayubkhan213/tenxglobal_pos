@@ -18,6 +18,11 @@ class ReceiptPrinterMobile {
   static final _thermalPrinter = FlutterThermalPrinter.instance;
 
   /// ESC/POS Commands
+  static final Uint8List _escInverseOff =
+      Uint8List.fromList([0x1D, 0x42, 0x00]); // GS B 0
+  static final Uint8List _escInverseOn = Uint8List.fromList([0x1D, 0x42, 0x01]);
+  static final Uint8List _escUnderlineOff =
+      Uint8List.fromList([0x1B, 0x2D, 0x00]);
   static final Uint8List _escInit = Uint8List.fromList([0x1B, 0x40]);
   static final Uint8List _escAlignCenter =
       Uint8List.fromList([0x1B, 0x61, 0x01]);
@@ -38,6 +43,15 @@ class ReceiptPrinterMobile {
   static const int _width80mm = 48; // 80mm paper = ~48 chars
   static const int _width58mm = 32; // 58mm paper = ~32 chars
   static const int _width52mm = 24; // 52mm paper = ~24 chars (NARROW)
+
+  static void _addPrinterInit(BytesBuilder buffer) {
+    buffer.add(_escInit);
+    buffer.add(_escInverseOff);
+    buffer.add(_escUnderlineOff);
+    buffer.add(_escBoldOff);
+    buffer.add(_escSizeNormal);
+    buffer.add(_escAlignLeft);
+  }
 
   ///======================================================
   /// DETECT PAPER WIDTH FROM PRINTER
@@ -294,7 +308,7 @@ class ReceiptPrinterMobile {
   }) async {
     final businessInfo = await BusinessInfoBoxService.getBusinessInfo();
     final buffer = BytesBuilder();
-
+    _addPrinterInit(buffer);
     // Remove top margin
     buffer.add([0x1B, 0x32]);
 
@@ -453,7 +467,7 @@ class ReceiptPrinterMobile {
     final businessInfo = await BusinessInfoBoxService.getBusinessInfo();
     final order = orderResponse.order;
     final buffer = BytesBuilder();
-
+    _addPrinterInit(buffer);
     buffer.add([0x1B, 0x32]);
 
     buffer.add(_escAlignCenter);
