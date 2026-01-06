@@ -428,10 +428,18 @@ class ReceiptPrinterMobile {
           const addonsIndent = '';
           for (var ing in item.addons!) {
             buffer.add(_encode(
-                '$addonsIndent Addon ${ing.name} ${ing.quantity ?? ''}'));
-            buffer.add(_newLine());
+                _padRight('$addonsIndent Addon ${ing.name}', itemColWidth)));
+            buffer.add(_escBold);
+            buffer
+                .add(_encode(_padCenter('${ing.quantity ?? ''}', qtyColWidth)));
+            buffer.add(_escBoldOff);
+
+            // buffer.add(_encode(
+            //     '$addonsIndent Addon ${ing.name} ${ing.quantity ?? ''}'));
+            // buffer.add(_newLine());
           }
         }
+        buffer.add(_newLine());
         buffer.add(_newLine());
         // Notes if present
         if (item.note != null && item.note!.isNotEmpty) {
@@ -572,9 +580,15 @@ class ReceiptPrinterMobile {
     // Items
     if (order?.items != null && order!.items!.isNotEmpty) {
       for (var item in order.items!) {
+        // final addonPrice = item.addons?.fold<double>(
+        //       0.0,
+        //       (sum, addon) => sum + (addon.price ?? 0.0),
+        //     ) ??
+        //     0.0;
+
         final name = _truncate(item.title ?? 'Item', itemColWidth);
         final qty = '${item.quantity ?? 0}';
-        final price = '${(item.price ?? 0).toStringAsFixed(2)}';
+        final price = '${((item.price ?? 0)).toStringAsFixed(2)}';
 
         buffer.add(_encode(_padRight(name, itemColWidth)));
         buffer.add(_escBold);
@@ -594,6 +608,22 @@ class ReceiptPrinterMobile {
         }
         if (item.removedIngredients != null &&
             item.removedIngredients!.isEmpty) {
+          buffer.add(_newLine());
+        }
+
+        if (item.addons != null && item.addons!.isNotEmpty) {
+          for (var ing in item.addons!) {
+            buffer.add(
+                _encode(_padRight(' Addons: ' '${ing.name}', itemColWidth)));
+            buffer.add(_escBold);
+            buffer.add(_encode(
+              _padCenter(ing.quantity.toString(), qtyColWidth) +
+                  _padLeft(ing.price.toString(), priceColWidth),
+            ));
+            buffer.add(_escBoldOff);
+          }
+
+          buffer.add(_newLine());
           buffer.add(_newLine());
         }
       }
@@ -620,7 +650,15 @@ class ReceiptPrinterMobile {
       encode: _encode,
       totalWidth: paperWidth,
     );
-
+    printLabelValueRightBold(
+      buffer: buffer,
+      label: 'Total Addons Price:',
+      value: '${orderResponse.order?.totalAddons?.toStringAsFixed(2)}',
+      escBoldOn: _escBold,
+      escBoldOff: _escBoldOff,
+      encode: _encode,
+      totalWidth: paperWidth,
+    );
     printLabelValueRightBold(
       buffer: buffer,
       label: 'Services Charges:',
@@ -708,7 +746,7 @@ class ReceiptPrinterMobile {
     printLabelValueRightBold(
       buffer: buffer,
       label: 'Outstanding:',
-      value: ' 0.0',
+      value: order?.outstanding.toString() ?? '0.0',
       escBoldOn: _escBold,
       escBoldOff: _escBoldOff,
       encode: _encode,
