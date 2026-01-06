@@ -63,7 +63,14 @@ class OrderData {
   String? paymentType;
   double? cashAmount;
   double? cardAmount;
+ String? paymentStatus;
+  bool? confirmMissingIngredients;
 
+  List<Payment>? payments;
+
+  double? outstanding;
+  double? remainingBalance;
+  double? totalAddons;
   OrderData({
     this.userId,
     this.shiftId,
@@ -100,6 +107,12 @@ class OrderData {
     this.paymentType,
     this.cashAmount,
     this.cardAmount,
+     this.paymentStatus,
+  this.confirmMissingIngredients,
+  this.payments,
+  this.outstanding,
+  this.remainingBalance,
+  this.totalAddons,
   });
 
   factory OrderData.fromJson(Map<String, dynamic> json) {
@@ -140,6 +153,47 @@ class OrderData {
       paymentType: json['payment_type'] ?? 'Cash',
       cashAmount: _toDoubleOrNull(json['cash_amount']),
       cardAmount: _toDoubleOrNull(json['card_amount']),
+        paymentStatus: json['payment_status'],
+    confirmMissingIngredients: json['confirm_missing_ingredients'],
+
+    payments: (json['payments'] as List?)
+        ?.map((e) => Payment.fromJson(e))
+        .toList(),
+
+    outstanding: _toDoubleOrNull(json['outstanding']),
+    remainingBalance: _toDoubleOrNull(json['remaining_balance']),
+    totalAddons: _toDoubleOrNull(json['total_addons']),
+    );
+  }
+}
+class Payment {
+  final int id;
+  final double amountReceived;
+  final double cashAmount;
+  final double cardAmount;
+  final String paymentType;
+  final String paymentStatus;
+  final String currencyCode;
+
+  Payment({
+    required this.id,
+    required this.amountReceived,
+    required this.cashAmount,
+    required this.cardAmount,
+    required this.paymentType,
+    required this.paymentStatus,
+    required this.currencyCode,
+  });
+
+  factory Payment.fromJson(Map<String, dynamic> json) {
+    return Payment(
+      id: json['id'],
+      amountReceived: _toDouble(json['amount_received']),
+      cashAmount: _toDouble(json['cash_amount']),
+      cardAmount: _toDouble(json['card_amount']),
+      paymentType: json['payment_type'],
+      paymentStatus: json['payment_status'],
+      currencyCode: json['currency_code'],
     );
   }
 }
@@ -312,7 +366,7 @@ class Addon {
   final int id;
   final String name;
   final double price;
-  final double? quantity;
+  final int? quantity;
 
   Addon({
     required this.id,
@@ -323,10 +377,10 @@ class Addon {
 
   factory Addon.fromJson(Map<String, dynamic> json) {
     return Addon(
-      id: json['id'],
-      name: json['name'],
-      price: (json['price'] as num).toDouble(),
-      //   quantity: (json['quantity'] as num).toDouble(),
+      id: int.tryParse(json['id'].toString()) ?? 0,
+      name: json['addon_name']?.toString() ?? json['name']?.toString() ?? '',
+      price: _toDouble(json['price']),
+      quantity: (json['quantity']),
     );
   }
 
