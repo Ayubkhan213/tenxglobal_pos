@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tenxglobal_pos/core/constants/utils.dart';
 import 'package:tenxglobal_pos/core/services/hive_services/business_info_service.dart';
+import 'package:tenxglobal_pos/core/services/server/app_info_service.dart';
 import 'package:tenxglobal_pos/pdf_slip/pdf_slip_preview.dart';
 import 'package:tenxglobal_pos/provider/login_provider.dart';
 
@@ -61,169 +62,145 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Consumer<LoginProvider>(
-              builder: (context, authProvider, _) {
-                return StepProgressColumn(
-                  currentStep: authProvider.currentStep,
-                  authenticated: authProvider.isAuthenticated,
-                  connected: authProvider.isConnected,
-                );
-              },
-            ),
-            Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(40),
-                child: SizedBox(
-                  width: 600.0,
-                  child: Column(
-                    children: [
-                      Stack(
-                        children: [
-                          // Header Row
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              CircleAvatar(
-                                radius: 30,
-                                backgroundColor: const Color(0xFF1976D2),
-                                child: const Icon(
-                                  Icons.print,
-                                  size: 35,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(width: 20),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    "10xGlobal Printing Agent",
-                                    style: TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue.shade700,
-                                    ),
-                                  ),
-                                  Text(
-                                    "Web POS Printing Service",
-                                    style:
-                                        TextStyle(color: Colors.grey.shade600),
-                                  ),
-                                ],
-                              ),
-                              Spacer(),
-                              IconButton(
-                                icon:
-                                    const Icon(Icons.logout, color: Colors.red),
-                                onPressed: () async {
-                                  // Show confirmation dialog
-                                  bool? confirmLogout = await showDialog<bool>(
-                                    context: context,
-                                    builder: (context) {
-                                      return AlertDialog(
-                                        title: const Text("Confirm Logout"),
-                                        content: const Text(
-                                            "Are you sure you want to logout?"),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.of(context)
-                                                    .pop(false),
-                                            child: const Text("Cancel"),
-                                          ),
-                                          ElevatedButton(
-                                            onPressed: () =>
-                                                Navigator.of(context).pop(true),
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors.red,
-                                            ),
-                                            child: const Text("Logout"),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-
-                                  // If user confirmed, call logout
-                                  if (confirmLogout == true) {
-                                    final authProvider =
-                                        Provider.of<LoginProvider>(context,
-                                            listen: false);
-                                    authProvider.logout();
-
-                                    // Optionally navigate to login screen
-                                    // Navigator.pushReplacementNamed(context, '/login');
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                          // Logout Button on top-right
-                          // Positioned(
-                          //   right: 0,
-                          //   top: 0,
-                          //   child: IconButton(
-                          //     icon: const Icon(Icons.logout, color: Colors.red),
-                          //     onPressed: () async {
-                          //       // Show confirmation dialog
-                          //       bool? confirmLogout = await showDialog<bool>(
-                          //         context: context,
-                          //         builder: (context) {
-                          //           return AlertDialog(
-                          //             title: const Text("Confirm Logout"),
-                          //             content: const Text(
-                          //                 "Are you sure you want to logout?"),
-                          //             actions: [
-                          //               TextButton(
-                          //                 onPressed: () =>
-                          //                     Navigator.of(context).pop(false),
-                          //                 child: const Text("Cancel"),
-                          //               ),
-                          //               ElevatedButton(
-                          //                 onPressed: () =>
-                          //                     Navigator.of(context).pop(true),
-                          //                 style: ElevatedButton.styleFrom(
-                          //                   backgroundColor: Colors.red,
-                          //                 ),
-                          //                 child: const Text("Logout"),
-                          //               ),
-                          //             ],
-                          //           );
-                          //         },
-                          //       );
-
-                          //       // If user confirmed, call logout
-                          //       if (confirmLogout == true) {
-                          //         final authProvider =
-                          //             Provider.of<LoginProvider>(context,
-                          //                 listen: false);
-                          //         authProvider.logout();
-
-                          //         // Optionally navigate to login screen
-                          //         // Navigator.pushReplacementNamed(context, '/login');
-                          //       }
-                          //     },
-                          //   ),
-                          // ),
-                        ],
-                      ),
-                      // const SizedBox(height: 50),
-                      // Consumer<LoginProvider>(
-                      //   builder: (context, authProvider, _) {
-                      //     return StepProgressRow(
-                      //       currentStep: authProvider.currentStep,
-                      //       authenticated: authProvider.isAuthenticated,
-                      //       connected: authProvider.isConnected,
-                      //     );
-                      //   },
-                      // ),
-
-                      const SizedBox(height: 20),
-                      _contentCard(),
-                    ],
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Consumer<LoginProvider>(
+                    builder: (context, authProvider, _) {
+                      return StepProgressColumn(
+                        currentStep: authProvider.currentStep,
+                        authenticated: authProvider.isAuthenticated,
+                        connected: authProvider.isConnected,
+                      );
+                    },
                   ),
-                ),
+                  Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(40),
+                      child: SizedBox(
+                        width: 600.0,
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CircleAvatar(
+                                  radius: 30,
+                                  backgroundColor: const Color(0xFF1976D2),
+                                  child: const Icon(
+                                    Icons.print,
+                                    size: 35,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(width: 20),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "10xGlobal Printing Agent",
+                                      style: TextStyle(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue.shade700,
+                                      ),
+                                    ),
+                                    Text(
+                                      "Web POS Printing Service",
+                                      style: TextStyle(
+                                          color: Colors.grey.shade600),
+                                    ),
+                                  ],
+                                ),
+                                Spacer(),
+                                IconButton(
+                                  icon: const Icon(Icons.logout,
+                                      color: Colors.red),
+                                  onPressed: () async {
+                                    // Show confirmation dialog
+                                    bool? confirmLogout =
+                                        await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) {
+                                        return AlertDialog(
+                                          title: const Text("Confirm Logout"),
+                                          content: const Text(
+                                              "Are you sure you want to logout?"),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.of(context)
+                                                      .pop(false),
+                                              child: const Text("Cancel"),
+                                            ),
+                                            ElevatedButton(
+                                              onPressed: () =>
+                                                  Navigator.of(context)
+                                                      .pop(true),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.red,
+                                              ),
+                                              child: const Text("Logout"),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+
+                                    // If user confirmed, call logout
+                                    if (confirmLogout == true) {
+                                      final authProvider =
+                                          Provider.of<LoginProvider>(context,
+                                              listen: false);
+                                      authProvider.logout();
+
+                                      // Optionally navigate to login screen
+                                      // Navigator.pushReplacementNamed(context, '/login');
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                            // const SizedBox(height: 50),
+                            // Consumer<LoginProvider>(
+                            //   builder: (context, authProvider, _) {
+                            //     return StepProgressRow(
+                            //       currentStep: authProvider.currentStep,
+                            //       authenticated: authProvider.isAuthenticated,
+                            //       connected: authProvider.isConnected,
+                            //     );
+                            //   },
+                            // ),
+
+                            const SizedBox(height: 20),
+                            _contentCard(),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    "Version: ${AppInfoService.instance.version} ",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.withValues(alpha: 0.6),
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  SizedBox(
+                    height: 5.0,
+                  ),
+                ],
               ),
             ),
           ],

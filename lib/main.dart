@@ -4,8 +4,10 @@ import 'dart:io'; // ADD THIS LINE!
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:hive/hive.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:tenxglobal_pos/core/services/server/app_info_service.dart';
 
 import 'package:tenxglobal_pos/core/services/server/server.dart';
 import 'package:tenxglobal_pos/login.dart';
@@ -14,10 +16,13 @@ import 'package:tenxglobal_pos/models/printer_model.dart' hide Printer;
 import 'package:tenxglobal_pos/provider/login_provider.dart';
 import 'package:tenxglobal_pos/provider/printing_agant_provider.dart';
 import 'config.dart';
+// import 'package:flutter/rendering.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppInfoService.instance.init();
 
+  // debugPaintSizeEnabled = true;
   // Initialize Hive
   final directory = await getApplicationDocumentsDirectory();
   Hive.init(directory.path);
@@ -43,7 +48,7 @@ void main() async {
 
 class POSAgentApp extends StatelessWidget {
   const POSAgentApp({super.key});
-  
+
   static final navigatorKey = GlobalKey<NavigatorState>();
   static final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
@@ -146,7 +151,7 @@ class POSWebViewScreenState extends State<POSWebViewScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     _pullToRefreshController = PullToRefreshController(
       settings: PullToRefreshSettings(
         color: Colors.blueAccent,
@@ -157,8 +162,7 @@ class POSWebViewScreenState extends State<POSWebViewScreen> {
           _webViewController?.reload();
         } else if (Platform.isIOS) {
           _webViewController?.loadUrl(
-            urlRequest: URLRequest(url: await _webViewController?.getUrl())
-          );
+              urlRequest: URLRequest(url: await _webViewController?.getUrl()));
         }
       },
     );
