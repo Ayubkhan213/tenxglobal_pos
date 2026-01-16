@@ -526,7 +526,7 @@ class PdfReceiptPrinter {
               //   ),
               _labelValue(
                 'Payment Type',
-                order?.paymentMethod ?? 'Cash',
+                order?.payments?.first.paymentType ?? 'Cash',
                 font,
               ),
               _labelValue(
@@ -539,11 +539,11 @@ class PdfReceiptPrinter {
                 order?.customerName ?? 'Eat in',
                 font,
               ),
-              if (order?.phoneNumber != null &&
-                  order?.phoneNumber?.trim() != '')
+              if (order?.customerPhone != null &&
+                  order?.customerPhone?.trim() != '')
                 _labelValue(
                   'Contact Number',
-                  order?.phoneNumber ?? '',
+                  order?.customerPhone ?? '',
                   font,
                 ),
               pw.SizedBox(height: 5),

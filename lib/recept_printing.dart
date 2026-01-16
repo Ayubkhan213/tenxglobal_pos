@@ -97,6 +97,7 @@ class ReceiptPrinterMobile {
       debugPrint("🖨️  Detected KOT paper width: $paperWidth chars");
 
       final data = await _generateKOTData(
+        orderRes: orderResponse,
         orderId: orderResponse.order?.id.toString() ?? '123',
         orderType: orderResponse.order?.orderType ?? 'Eat In',
         items: orderResponse.order?.items,
@@ -299,6 +300,7 @@ class ReceiptPrinterMobile {
   ///======================================================
   static Future<Uint8List> _generateKOTData({
     required String orderId,
+    required OrderResponse orderRes,
     String orderType = '',
     List<OrderItem>? items,
     int paperWidth = _width80mm,
@@ -412,6 +414,24 @@ class ReceiptPrinterMobile {
         buffer.add(_escBold);
         buffer.add(_encode(_padCenter(qty, qtyColWidth)));
         buffer.add(_escBoldOff);
+        if (item.menuItems != null && item.menuItems!.isNotEmpty) {
+          for (var menuItem in item.menuItems!) {
+            buffer.add(
+              _encode(_padRight('   ${menuItem.name}', itemColWidth)),
+            );
+            buffer.add(_newLine());
+          }
+        }
+        if (item.choiceGroups != null && item.choiceGroups!.isNotEmpty) {
+          for (var chosesGroup in item.choiceGroups!) {
+            buffer.add(
+              _encode(_padRight(
+                  '   ${chosesGroup.items.first.name}', itemColWidth)),
+            );
+            buffer.add(_newLine());
+          }
+          buffer.add(_newLine());
+        }
 
         // Check removed ingredients
         if (item.removedIngredients != null &&
