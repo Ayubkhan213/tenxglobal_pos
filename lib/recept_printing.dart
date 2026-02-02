@@ -430,7 +430,7 @@ class ReceiptPrinterMobile {
             );
             buffer.add(_newLine());
           }
-          buffer.add(_newLine());
+          // buffer.add(_newLine());
         }
 
         // Check removed ingredients
@@ -441,9 +441,9 @@ class ReceiptPrinterMobile {
             buffer.add(_encode('$ingredientIndent Remove ${ing.name}'));
             buffer.add(_newLine());
           }
+          buffer.add(_newLine());
         }
 
-        buffer.add(_newLine());
         if (item.addons != null && item.addons!.isNotEmpty) {
           const addonsIndent = '';
           for (var ing in item.addons!) {
@@ -460,7 +460,7 @@ class ReceiptPrinterMobile {
           }
         }
         buffer.add(_newLine());
-        buffer.add(_newLine());
+        // buffer.add(_newLine());
         // Notes if present
         if (item.note != null && item.note!.isNotEmpty) {
           final noteLines = _wrapText(
