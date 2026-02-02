@@ -6,9 +6,9 @@ import 'package:tenxglobal_pos/core/services/server/app_info_service.dart';
 import 'package:tenxglobal_pos/pdf_slip/pdf_slip_preview.dart';
 import 'package:tenxglobal_pos/provider/login_provider.dart';
 
-import 'package:tenxglobal_pos/steper/auth_step.dart';
-import 'package:tenxglobal_pos/steper/dorop_down.dart';
-import 'package:tenxglobal_pos/steper/step_progress_row.dart';
+import 'package:tenxglobal_pos/core/screen/pos/steper/auth_step.dart';
+import 'package:tenxglobal_pos/core/screen/pos/steper/dorop_down.dart';
+import 'package:tenxglobal_pos/core/screen/pos/steper/step_progress_row.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

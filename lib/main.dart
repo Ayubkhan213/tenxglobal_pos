@@ -2,22 +2,27 @@
 
 import 'dart:io'; // ADD THIS LINE!
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:hive/hive.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:tenxglobal_pos/core/screen/customer/right_side_menu.dart';
+import 'package:tenxglobal_pos/core/screen/customer/right_side_menu_context.dart';
 import 'package:tenxglobal_pos/core/services/server/app_info_service.dart';
 
 import 'package:tenxglobal_pos/core/services/server/server.dart';
 import 'package:tenxglobal_pos/login.dart';
 import 'package:tenxglobal_pos/models/business_info_model.dart';
 import 'package:tenxglobal_pos/models/printer_model.dart' hide Printer;
+import 'package:tenxglobal_pos/provider/customer_provider.dart';
 import 'package:tenxglobal_pos/provider/login_provider.dart';
 import 'package:tenxglobal_pos/provider/printing_agant_provider.dart';
 import 'config.dart';
-// import 'package:flutter/rendering.dart';
 
+// import 'package:flutter/rendering.dart';
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppInfoService.instance.init();
@@ -49,22 +54,25 @@ void main() async {
 class POSAgentApp extends StatelessWidget {
   const POSAgentApp({super.key});
 
-  static final navigatorKey = GlobalKey<NavigatorState>();
+  // static final navigatorKey = GlobalKey<NavigatorState>();
   static final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'POS Agent',
-      debugShowCheckedModeBanner: false,
-      navigatorKey: navigatorKey,
-      scaffoldMessengerKey: scaffoldMessengerKey,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: Colors.black,
+    return ChangeNotifierProvider(
+      create: (_) => CustomerProvider(),
+      child: MaterialApp(
+        title: 'POS Agent',
+        debugShowCheckedModeBanner: false,
+        navigatorKey: navigatorKey,
+        scaffoldMessengerKey: scaffoldMessengerKey,
+        theme: ThemeData(
+          brightness: Brightness.dark,
+          primarySwatch: Colors.blue,
+          scaffoldBackgroundColor: Colors.black,
+        ),
+        home: const MainShell(),
       ),
-      home: const MainShell(),
     );
   }
 }
@@ -79,8 +87,10 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
   bool _serverStarted = false;
+  int _posTapCount = 0;
+  DateTime? _lastTapTime;
+  bool _showRightMenu = false; // Track menu visibility
 
-  // Keys for pages to force rebuild
   final List<GlobalKey<POSWebViewScreenState>> _pageKeys = [
     GlobalKey<POSWebViewScreenState>(),
   ];
@@ -88,7 +98,7 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
-    // START SERVER WHEN APP LAUNCHES
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_serverStarted) {
         _serverStarted = true;
@@ -103,15 +113,83 @@ class _MainShellState extends State<MainShell> {
     LoginScreen(),
   ];
 
+  void _handlePOSTap() {
+    final now = DateTime.now();
+
+    if (_lastTapTime != null &&
+        now.difference(_lastTapTime!) < const Duration(milliseconds: 500)) {
+      // Double tap detected - Toggle right side menu
+      setState(() {
+        _showRightMenu = !_showRightMenu;
+      });
+      _posTapCount = 0;
+    } else {
+      // Single tap - navigate normally
+      setState(() => _currentIndex = 0);
+      _posTapCount = 1;
+    }
+
+    _lastTapTime = now;
+  }
+
+  void _closeRightMenu() {
+    setState(() {
+      _showRightMenu = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: IndexedStack(
-          index: _currentIndex,
+        child: Stack(
           children: [
-            POSWebViewScreen(key: _pageKeys[0]),
-            _pages[1],
+            // Main content
+            IndexedStack(
+              index: _currentIndex,
+              children: [
+                POSWebViewScreen(key: _pageKeys[0]),
+                _pages[1],
+              ],
+            ),
+
+            // Right side menu (animated slide-in)
+            if (_showRightMenu)
+              Positioned(
+                right: 0,
+                top: 0,
+                bottom: 0,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 1.0, end: 0.0),
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  builder: (context, value, child) {
+                    return Transform.translate(
+                      offset: Offset(
+                        MediaQuery.of(context).size.width * 0.4 * value,
+                        0,
+                      ),
+                      child: child,
+                    );
+                  },
+                  child: Container(
+                    width: MediaQuery.of(context).size.width * 0.3,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 20,
+                          offset: const Offset(-5, 0),
+                        ),
+                      ],
+                    ),
+                    child: RightSideMenuContent(
+                      onClose: _closeRightMenu,
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -120,7 +198,13 @@ class _MainShellState extends State<MainShell> {
         selectedItemColor: Colors.blueAccent,
         unselectedItemColor: Colors.grey,
         currentIndex: _currentIndex,
-        onTap: (i) => setState(() => _currentIndex = i),
+        onTap: (i) {
+          if (i == 0) {
+            _handlePOSTap();
+          } else {
+            setState(() => _currentIndex = i);
+          }
+        },
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.storefront),

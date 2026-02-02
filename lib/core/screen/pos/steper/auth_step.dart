@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tenxglobal_pos/provider/login_provider.dart';
-import 'package:tenxglobal_pos/steper/custom_text_field.dart';
+import 'package:tenxglobal_pos/core/screen/pos/steper/custom_text_field.dart';
 
 class AuthStep extends StatefulWidget {
   final TextEditingController usernameController;
