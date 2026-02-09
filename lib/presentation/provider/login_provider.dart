@@ -9,7 +9,7 @@ import 'package:tenxglobal_pos/core/services/hive_services/business_info_service
 import 'package:tenxglobal_pos/core/services/hive_services/printer_box_service.dart';
 import 'package:tenxglobal_pos/main.dart';
 
-import 'package:tenxglobal_pos/models/business_info_model.dart';
+import 'package:tenxglobal_pos/data/models/business_info_model.dart';
 
 class LoginProvider extends ChangeNotifier {
   BaseApiServices apiServices = NetworkApiServices();

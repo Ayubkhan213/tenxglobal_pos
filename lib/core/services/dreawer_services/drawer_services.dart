@@ -232,7 +232,7 @@ import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_thermal_printer/flutter_thermal_printer.dart';
 import 'package:flutter_thermal_printer/utils/printer.dart';
-import 'package:tenxglobal_pos/models/printer_model.dart' hide Printer;
+import 'package:tenxglobal_pos/data/models/printer_model.dart' hide Printer;
 
 class CashDrawerService {
   static const int defaultPort = 9100; // Xprinter LAN usually 9100

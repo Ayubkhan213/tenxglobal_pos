@@ -1,33 +1,34 @@
-// ignore_for_file: avoid_print
+// ignore_for_file: avoid_print, prefer_final_fields
 
+import 'dart:async';
 import 'dart:io'; // ADD THIS LINE!
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:hive/hive.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:tenxglobal_pos/core/screen/customer/right_side_menu.dart';
-import 'package:tenxglobal_pos/core/screen/customer/right_side_menu_context.dart';
+import 'package:tenxglobal_pos/presentation/screens/right_side_menu_context.dart';
+import 'package:tenxglobal_pos/presentation/screens/customer_view/customer_view.dart';
+import 'package:tenxglobal_pos/core/services/customer_view_display_service/customer_display_service.dart';
 import 'package:tenxglobal_pos/core/services/server/app_info_service.dart';
 
 import 'package:tenxglobal_pos/core/services/server/server.dart';
-import 'package:tenxglobal_pos/login.dart';
-import 'package:tenxglobal_pos/models/business_info_model.dart';
-import 'package:tenxglobal_pos/models/printer_model.dart' hide Printer;
-import 'package:tenxglobal_pos/provider/customer_provider.dart';
-import 'package:tenxglobal_pos/provider/login_provider.dart';
-import 'package:tenxglobal_pos/provider/printing_agant_provider.dart';
-import 'config.dart';
+import 'package:tenxglobal_pos/core/utils/device_utils.dart';
+import 'package:tenxglobal_pos/presentation/screens/login.dart';
+import 'package:tenxglobal_pos/data/models/business_info_model.dart';
+import 'package:tenxglobal_pos/data/models/printer_model.dart' hide Printer;
+import 'package:tenxglobal_pos/presentation/provider/customer_provider.dart';
+import 'package:tenxglobal_pos/presentation/provider/login_provider.dart';
+import 'package:tenxglobal_pos/presentation/provider/printing_agant_provider.dart';
+import 'core/config.dart';
 
-// import 'package:flutter/rendering.dart';
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppInfoService.instance.init();
+  await DeviceUtils.initialize(enableDebugMode: false);
 
-  // debugPaintSizeEnabled = true;
   // Initialize Hive
   final directory = await getApplicationDocumentsDirectory();
   Hive.init(directory.path);
@@ -51,10 +52,15 @@ void main() async {
   );
 }
 
+// Entry point for customer display
+@pragma('vm:entry-point')
+void customerDisplayMain() {
+  runApp(const CustomerView());
+}
+
 class POSAgentApp extends StatelessWidget {
   const POSAgentApp({super.key});
 
-  // static final navigatorKey = GlobalKey<NavigatorState>();
   static final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
   @override
@@ -90,6 +96,8 @@ class _MainShellState extends State<MainShell> {
   int _posTapCount = 0;
   DateTime? _lastTapTime;
   bool _showRightMenu = false; // Track menu visibility
+  List<Map<String, dynamic>> _cartItems = [];
+  double _total = 0.0;
 
   final List<GlobalKey<POSWebViewScreenState>> _pageKeys = [
     GlobalKey<POSWebViewScreenState>(),
@@ -99,11 +107,32 @@ class _MainShellState extends State<MainShell> {
   void initState() {
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_serverStarted) {
         _serverStarted = true;
         ServerServices.startLocalServer(context);
-        print("Local server initialization started");
+        print("🌐 Local server initialization started");
+      }
+
+      // ✅ For Sunmi D3 Pro: Auto-launch customer display on secondary screen
+      if (DeviceUtils.shouldAutoShowCustomerDisplay) {
+        print("════════════════════════════════════════");
+        print("✅ Sunmi D3 Pro detected");
+        print("📺 Auto-launching customer display on SECONDARY screen");
+        print("════════════════════════════════════════");
+
+        // Delay to ensure MainActivity is fully loaded
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Future.delayed(const Duration(milliseconds: 1500), () {
+            _showCustomerDisplay();
+          });
+        });
+      } else if (DeviceUtils.shouldUseCustomerDisplay) {
+        print("⚠️ Debug mode enabled - Customer display available via menu");
+      } else {
+        print(
+            "ℹ️ Customer display disabled (not Sunmi device & debug mode off)");
       }
     });
   }
@@ -116,20 +145,47 @@ class _MainShellState extends State<MainShell> {
   void _handlePOSTap() {
     final now = DateTime.now();
 
+    // Reset tap count if more than 2 seconds have passed
     if (_lastTapTime != null &&
-        now.difference(_lastTapTime!) < const Duration(milliseconds: 500)) {
-      // Double tap detected - Toggle right side menu
-      setState(() {
-        _showRightMenu = !_showRightMenu;
-      });
+        now.difference(_lastTapTime!) > const Duration(seconds: 2)) {
       _posTapCount = 0;
-    } else {
-      // Single tap - navigate normally
-      setState(() => _currentIndex = 0);
-      _posTapCount = 1;
     }
 
+    _posTapCount++;
     _lastTapTime = now;
+
+    print('🔢 POS Tab Tap Count: $_posTapCount');
+
+    // Open right menu on 5th tap
+    if (_posTapCount >= 5) {
+      print('✅ 5 taps detected - Opening right menu');
+      setState(() {
+        _showRightMenu = true;
+        _posTapCount = 0; // Reset counter
+      });
+
+      // Show feedback
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🎉 Right menu activated!'),
+          duration: Duration(milliseconds: 500),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      // Navigate to POS on normal tap
+      if (_currentIndex != 0) {
+        setState(() => _currentIndex = 0);
+      }
+    }
+  }
+
+  void _showCustomerDisplay() {
+    CustomerDisplayService.show(
+      title: 'Welcome to Our Store',
+      total: _total,
+      items: _cartItems,
+    );
   }
 
   void _closeRightMenu() {
@@ -152,7 +208,32 @@ class _MainShellState extends State<MainShell> {
                 _pages[1],
               ],
             ),
-
+            // Device info overlay (top-left corner for debugging)
+            if (!DeviceUtils.isSunmiDevice)
+              Positioned(
+                top: 10,
+                left: 10,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: DeviceUtils.shouldUseCustomerDisplay
+                        ? Colors.orange.withOpacity(0.8)
+                        : Colors.red.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    DeviceUtils.shouldUseCustomerDisplay
+                        ? '🔧 DEBUG MODE'
+                        : '⚠️ NOT SUNMI',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
             // Right side menu (animated slide-in)
             if (_showRightMenu)
               Positioned(

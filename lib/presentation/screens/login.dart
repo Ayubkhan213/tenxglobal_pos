@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:tenxglobal_pos/core/constants/utils.dart';
 import 'package:tenxglobal_pos/core/services/hive_services/business_info_service.dart';
 import 'package:tenxglobal_pos/core/services/server/app_info_service.dart';
 import 'package:tenxglobal_pos/pdf_slip/pdf_slip_preview.dart';
-import 'package:tenxglobal_pos/provider/login_provider.dart';
+import 'package:tenxglobal_pos/presentation/provider/login_provider.dart';
 
-import 'package:tenxglobal_pos/core/screen/pos/steper/auth_step.dart';
-import 'package:tenxglobal_pos/core/screen/pos/steper/dorop_down.dart';
-import 'package:tenxglobal_pos/core/screen/pos/steper/step_progress_row.dart';
+import 'package:tenxglobal_pos/presentation/screens/steper/auth_step.dart';
+import 'package:tenxglobal_pos/presentation/screens/steper/dorop_down.dart';
+import 'package:tenxglobal_pos/presentation/screens/steper/step_progress_row.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
