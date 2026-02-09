@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:tenxglobal_pos/provider/printing_agant_provider.dart';
+import 'package:tenxglobal_pos/presentation/provider/printing_agant_provider.dart';
 
 class PrinterSelectionWidget extends StatefulWidget {
   final bool selectKitchen;

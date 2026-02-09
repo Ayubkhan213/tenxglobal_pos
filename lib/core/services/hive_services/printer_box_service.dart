@@ -1,5 +1,5 @@
 import 'package:hive/hive.dart';
-import 'package:tenxglobal_pos/models/printer_model.dart';
+import 'package:tenxglobal_pos/data/models/printer_model.dart';
 
 class PrinterBoxService {
   static const String _boxName = 'printerBoxs';

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:tenxglobal_pos/config.dart';
+import 'package:tenxglobal_pos/core/config.dart';
 
 class POSWebViewScreen extends StatefulWidget {
   const POSWebViewScreen({super.key});

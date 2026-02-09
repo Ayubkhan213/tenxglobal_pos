@@ -73,3 +73,7 @@ android {
 flutter {
     source = "../.."
 }
+dependencies {
+    //  Sunmi Printer SDK
+    implementation 'com.sunmi:printerlibrary:1.0.23'
+}

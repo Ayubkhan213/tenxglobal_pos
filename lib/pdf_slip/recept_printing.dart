@@ -10,8 +10,8 @@ import 'package:provider/provider.dart';
 import 'package:flutter_thermal_printer/flutter_thermal_printer.dart';
 import 'package:tenxglobal_pos/core/services/dreawer_services/drawer_services.dart';
 import 'package:tenxglobal_pos/core/services/hive_services/business_info_service.dart';
-import 'package:tenxglobal_pos/models/order_response_model.dart';
-import 'package:tenxglobal_pos/provider/printing_agant_provider.dart';
+import 'package:tenxglobal_pos/data/models/order_response_model.dart';
+import 'package:tenxglobal_pos/presentation/provider/printing_agant_provider.dart';
 
 class ReceiptPrinterMobile {
   // USB printer instance

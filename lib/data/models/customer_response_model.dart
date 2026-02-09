@@ -181,10 +181,28 @@ class CartResponse {
   });
 
   factory CartResponse.fromJson(Map<String, dynamic> json) {
+    Map<String, dynamic>? orderJson;
+
+    // Case 1: { data: { order: {...} } }
+    if (json['data'] is Map && (json['data'] as Map).containsKey('order')) {
+      orderJson = (json['data'] as Map<String, dynamic>)['order']
+          as Map<String, dynamic>;
+    }
+
+    // Case 2: { order: {...} }
+    else if (json['order'] is Map) {
+      orderJson = json['order'] as Map<String, dynamic>;
+    }
+
+    // Case 3: order object directly
+    else {
+      orderJson = json;
+    }
+
     return CartResponse(
-      order: CartData.fromJson(json['order'] ?? {}),
-      type: json['type'] ?? '',
-      print: json['print'] ?? '',
+      order: CartData.fromJson(orderJson),
+      type: json['type']?.toString() ?? '',
+      print: json['print']?.toString() ?? 'no',
     );
   }
 }
@@ -225,24 +243,46 @@ class CartData {
   });
 
   factory CartData.fromJson(Map<String, dynamic> json) {
+    final itemsRaw = json['items'];
+
+    final itemsList = (itemsRaw is List)
+        ? itemsRaw.whereType<Map<String, dynamic>>().map(Item.fromJson).toList()
+        : <Item>[];
+
+    String getString(List<String> keys, {String fallback = ''}) {
+      for (final key in keys) {
+        if (json[key] != null) return json[key].toString();
+      }
+      return fallback;
+    }
+
     return CartData(
-      items:
-          (json['items'] as List? ?? []).map((e) => Item.fromJson(e)).toList(),
-      customer: json['customer'] ?? '',
-      phoneNumber: json['phone_number'] ?? '',
-      deliveryLocation: json['delivery_location'] ?? '',
-      orderType: json['orderType'] ?? '',
-      table: json['table'],
-      subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0,
-      tax: (json['tax'] as num?)?.toDouble() ?? 0,
-      serviceCharges: (json['serviceCharges'] as num?)?.toDouble() ?? 0,
-      deliveryCharges: (json['deliveryCharges'] as num?)?.toDouble() ?? 0,
-      saleDiscount: (json['saleDiscount'] as num?)?.toDouble() ?? 0,
-      promoDiscount: (json['promoDiscount'] as num?)?.toDouble() ?? 0,
-      total: (json['total'] as num?)?.toDouble() ?? 0,
-      note: json['note'] ?? '',
-      appliedPromos: json['appliedPromos'] ?? [],
+      items: itemsList,
+      customer: getString(['customer'], fallback: 'Walk-in Customer'),
+      phoneNumber: getString(['phoneNumber', 'phone_number']),
+      deliveryLocation: getString(['deliveryLocation', 'delivery_location']),
+      orderType: getString(['orderType', 'order_type'], fallback: 'Takeaway'),
+      table: json['table']?.toString(),
+      subtotal: _parseDouble(json['subtotal']),
+      tax: _parseDouble(json['tax']),
+      serviceCharges:
+          _parseDouble(json['serviceCharges'] ?? json['service_charges']),
+      deliveryCharges:
+          _parseDouble(json['deliveryCharges'] ?? json['delivery_charges']),
+      saleDiscount: _parseDouble(json['saleDiscount'] ?? json['sale_discount']),
+      promoDiscount:
+          _parseDouble(json['promoDiscount'] ?? json['promo_discount']),
+      total: _parseDouble(json['total']),
+      note: json['note']?.toString() ?? '',
+      appliedPromos: json['appliedPromos'] ?? json['applied_promos'] ?? [],
     );
+  }
+
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
   }
 }
 
@@ -268,18 +308,26 @@ class Item {
   });
 
   factory Item.fromJson(Map<String, dynamic> json) {
+    // Parse addons safely
+    final List<Addon> addonsList = [];
+    if (json['addons'] is List) {
+      for (final addon in json['addons']) {
+        try {
+          addonsList.add(Addon.fromJson(addon));
+        } catch (_) {}
+      }
+    }
+
     return Item(
-      id: json['id'] ?? 0,
-      title: json['title'] ?? '',
-      img: json['img'] ?? '',
-      price: (json['price'] as num?)?.toDouble() ?? 0,
-      qty: json['qty'] ?? 0,
-      variantName: json['variant_name'],
-      addons: (json['addons'] as List? ?? [])
-          .map((e) => Addon.fromJson(e))
-          .toList(),
+      id: json['id'] ?? 0, // ✅ SAFE DEFAULT
+      title: json['title']?.toString() ?? 'Unknown Item',
+      img: json['img']?.toString() ?? 'https://via.placeholder.com/100',
+      price: CartData._parseDouble(json['price']),
+      qty: json['qty'] ?? 1,
+      variantName: json['variantName']?.toString(),
+      addons: addonsList,
       resaleDiscountPerItem:
-          (json['resale_discount_per_item'] as num?)?.toDouble() ?? 0,
+          CartData._parseDouble(json['resaleDiscountPerItem']),
     );
   }
 }
@@ -298,8 +346,8 @@ class Addon {
   factory Addon.fromJson(Map<String, dynamic> json) {
     return Addon(
       id: json['id'] ?? 0,
-      name: json['name'] ?? '',
-      price: (json['price'] as num?)?.toDouble() ?? 0,
+      name: json['name']?.toString() ?? 'Unknown Addon',
+      price: CartData._parseDouble(json['price']),
     );
   }
 }

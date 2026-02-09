@@ -1,5 +1,5 @@
 import 'package:hive/hive.dart';
-import 'package:tenxglobal_pos/models/business_info_model.dart';
+import 'package:tenxglobal_pos/data/models/business_info_model.dart';
 
 class BusinessInfoBoxService {
   static const String _boxName = 'businessInfo';

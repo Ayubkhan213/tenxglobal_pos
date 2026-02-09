@@ -4,11 +4,12 @@ import 'package:flutter_thermal_printer/utils/printer.dart';
 import 'package:hive/hive.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import 'package:tenxglobal_pos/core/services/hive_services/printer_box_service.dart';
-import 'package:tenxglobal_pos/models/printer_model.dart' hide Printer;
+import 'package:tenxglobal_pos/data/models/printer_model.dart' hide Printer;
 import 'package:flutter_thermal_printer/flutter_thermal_printer.dart';
 // Alias only your custom Printer model
-import 'package:tenxglobal_pos/models/printer_model.dart' as custom;
+import 'package:tenxglobal_pos/data/models/printer_model.dart' as custom;
 import 'package:flutter_thermal_printer/flutter_thermal_printer.dart';
+
 class PrintingAgentProviderMobile extends ChangeNotifier {
   Box? printerBox;
   bool isLoading = false;
@@ -130,7 +131,8 @@ class PrintingAgentProviderMobile extends ChangeNotifier {
         if (capturedPrinters != null && capturedPrinters!.isNotEmpty) {
           for (var usbPrinter in capturedPrinters!) {
             // Create unique identifier for USB printer
-            final usbId = 'usb:${usbPrinter.vendorId ?? "unknown"}:${usbPrinter.productId ?? "unknown"}';
+            final usbId =
+                'usb:${usbPrinter.vendorId ?? "unknown"}:${usbPrinter.productId ?? "unknown"}';
 
             found.add(custom.Printer(
               name: usbPrinter.name ?? 'USB Printer',
@@ -141,7 +143,8 @@ class PrintingAgentProviderMobile extends ChangeNotifier {
               isDefault: false,
             ));
 
-            debugPrint('✅ Found USB printer: ${usbPrinter.name} (VID: ${usbPrinter.vendorId}, PID: ${usbPrinter.productId})');
+            debugPrint(
+                '✅ Found USB printer: ${usbPrinter.name} (VID: ${usbPrinter.vendorId}, PID: ${usbPrinter.productId})');
           }
         } else {
           debugPrint("ℹ️ No USB printers detected");

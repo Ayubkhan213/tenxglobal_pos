@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously, avoid_print
+
 import 'dart:convert';
 import 'dart:developer';
 
@@ -5,13 +7,15 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:tenxglobal_pos/core/services/customer_view_display_service/customer_display_eventbus.dart';
+import 'package:tenxglobal_pos/core/services/customer_view_display_service/customer_display_service.dart';
 import 'package:tenxglobal_pos/core/services/dreawer_services/drawer_services.dart';
 import 'package:tenxglobal_pos/core/services/server/server.dart';
 import 'package:tenxglobal_pos/main.dart';
-import 'package:tenxglobal_pos/models/order_response_model.dart';
-import 'package:tenxglobal_pos/provider/customer_provider.dart';
-import 'package:tenxglobal_pos/provider/printing_agant_provider.dart';
-import 'package:tenxglobal_pos/recept_printing.dart';
+import 'package:tenxglobal_pos/data/models/order_response_model.dart';
+import 'package:tenxglobal_pos/presentation/provider/customer_provider.dart';
+import 'package:tenxglobal_pos/presentation/provider/printing_agant_provider.dart';
+import 'package:tenxglobal_pos/pdf_slip/recept_printing.dart';
 
 class ServerServices {
   static void startLocalServer(BuildContext context) async {
@@ -23,14 +27,15 @@ class ServerServices {
       );
 
       server.autoCompress = true;
+      print('═══════════════════════════════════════');
+      print(' POS Server Started on Port 8085');
+      print('═══════════════════════════════════════');
 
       await for (HttpRequest request in server) {
         print('--------------------');
         print('${request.method} ${request.uri}');
 
-        // =========================
-        // CORS HEADERS (MUST BE FIRST)
-        // =========================
+        // CORS HEADERS
         final origin = request.headers.value('origin');
 
         if (origin != null) {
@@ -47,9 +52,7 @@ class ServerServices {
           )
           ..set('Content-Type', 'application/json');
 
-        // =========================
-        // OPTIONS (CRITICAL)
-        // =========================
+        // OPTIONS
         if (request.method == 'OPTIONS') {
           request.response.statusCode = HttpStatus.noContent; // 204
           await request.response.close();
@@ -61,40 +64,50 @@ class ServerServices {
           listen: false,
         );
 
-        // =========================
         // PRINT ENDPOINT
-        // =========================
         if (request.method == 'POST' && request.uri.path == '/print') {
           try {
             final body = await utf8.decoder.bind(request).join();
             final data = jsonDecode(body);
+            print(' Received print request');
+            print('   Type: ${data['type']}');
 
-            // =========================
-            // CUSTOMER VIEW - ONLY UPDATE UI
-            // =========================
+            // ═══════════════════════════════════════
+            // CUSTOMER VIEW - UPDATE DISPLAY ONLY
+            // ═══════════════════════════════════════
+            // Enhanced version with detailed debugging logs
+            // Add this to your server_services.dart
+
             if (data['type'] == 'customer_view') {
-              print('-------------Inside Customer View -----------');
+              print('════════════════════════════════════════════');
+              print('🖥️ CUSTOMER VIEW UPDATE FLOW');
+              print('════════════════════════════════════════════');
+
               final context = navigatorKey.currentContext;
-              print(context != null);
+
               if (context != null) {
+                // 1️⃣ Update provider
                 Provider.of<CustomerProvider>(
                   context,
                   listen: false,
                 ).addOrderFromJson(data);
 
+                // 2️⃣ Send to customer display (ASYNC, no await)
+                CustomerDisplayService.updateFullData(data);
+
+                // ✅ 3️⃣ IMMEDIATELY RESPOND TO WEB
                 _jsonResponse(request, {
-                  'status': 'SUCCESS',
-                  'message': 'Customer view updated successfully',
-                  'timestamp': DateTime.now().toIso8601String(),
+                  'status': 'OK',
+                  'message': 'Customer view updated',
                 });
               } else {
                 _jsonResponse(request, {
                   'status': 'ERROR',
-                  'error_code': 'CONTEXT_ERROR',
                   'message': 'Navigator context not available',
                 });
               }
-              continue; // Skip the rest of the printing logic
+
+              continue;
             }
 
             // =========================
@@ -102,10 +115,9 @@ class ServerServices {
             // =========================
             final res = OrderResponse.fromJson(data);
 
-            log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>   its full response  >>>>>>>>>>>>>>>>> ${data}");
-            print(
-                ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>   its full orders  >>>>>>>>>>>>>>>>> ${res.order}");
-
+            log(" Order Details", name: "ServerServices");
+            log("   Order ID: ${res.order?.id}", name: "ServerServices");
+            log("   Type: ${res.type}", name: "ServerServices");
             if (res.order == null) {
               _jsonResponse(request, {
                 'status': 'ERROR',
@@ -119,12 +131,7 @@ class ServerServices {
             List<String> errorMessages = [];
             bool anyPrintSuccess = false;
 
-            print('-----------Print------------ ');
-            print(res.print);
-
-            // =========================
             // CASH DRAWER
-            // =========================
             print("res.order?.paymentType  ${res.order?.paymentMethod}");
             print("customerPrinter!.url ${provider.customerPrinter!.url}");
             print("res.type ${res.type}");
@@ -134,25 +141,22 @@ class ServerServices {
 
               // Check if it's a USB printer
               if (printerUrl.startsWith('usb')) {
-                print("Opening drawer via USB: $printerUrl");
+                print("💰 Opening cash drawer via USB: $printerUrl");
                 await CashDrawerService.open(
                   ip: null,
                   usbPrinterName: printerUrl,
                 );
-              }
-              // LAN printer
-              else {
+              } else {
                 final ip = printerUrl.split(':').first;
-                print("Opening drawer via LAN IP: $ip");
+                print("💰 Opening cash drawer via LAN: $ip");
                 await CashDrawerService.open(ip: ip);
               }
             }
 
-            // =========================
             // CUSTOMER RECEIPT
-            // =========================
             if (res.type == 'customer' && res.print == 'yes') {
               try {
+                print('🖨️ Printing customer receipt');
                 await ReceiptPrinterMobile.printReceipt(
                   context: context,
                   orderResponse: res,
@@ -160,13 +164,12 @@ class ServerServices {
                 successMessages.add('Customer receipt printed successfully');
                 anyPrintSuccess = true;
               } catch (e) {
+                print('❌ Customer receipt error: $e');
                 errorMessages.add(e.toString());
               }
             }
 
-            // =========================
             // KOT RECEIPT
-            // =========================
             if (res.type == 'KOT') {
               try {
                 print(res.order?.orderType);
@@ -178,13 +181,12 @@ class ServerServices {
                 successMessages.add('KOT printed successfully');
                 anyPrintSuccess = true;
               } catch (e) {
+                print('❌ KOT error: $e');
                 errorMessages.add(e.toString());
               }
             }
 
-            // =========================
-            // RESPONSE (ORB SAFE)
-            // =========================
+            // RESPONSE
             _jsonResponse(request, {
               'status': anyPrintSuccess ? 'SUCCESS' : 'ERROR',
               'message': anyPrintSuccess ? 'Print completed' : 'Print failed',
@@ -206,9 +208,7 @@ class ServerServices {
           continue;
         }
 
-        // =========================
         // STATUS ENDPOINT
-        // =========================
         if (request.method == 'GET' && request.uri.path == '/status') {
           _jsonResponse(request, {
             'status': 'online',
@@ -236,9 +236,7 @@ class ServerServices {
           continue;
         }
 
-        // =========================
         // NOT FOUND
-        // =========================
         _jsonResponse(request, {
           'status': 'ERROR',
           'error_code': 'NOT_FOUND',
