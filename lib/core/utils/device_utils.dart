@@ -62,6 +62,20 @@ class DeviceUtils {
     }
   }
 
+  /// ✅ NEW: Get current device info (for verification before launch)
+  static Future<Map<String, dynamic>?> getDeviceInfo() async {
+    try {
+      final result = await _channel.invokeMethod('getDeviceInfo');
+      if (result != null && result is Map) {
+        return Map<String, dynamic>.from(result);
+      }
+      return null;
+    } catch (e) {
+      print('❌ Error getting device info: $e');
+      return null;
+    }
+  }
+
   /// Check if device is Sunmi
   static bool get isSunmiDevice => _isSunmiDevice;
 

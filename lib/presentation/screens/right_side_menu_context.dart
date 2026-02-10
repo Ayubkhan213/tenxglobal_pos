@@ -1112,6 +1112,7 @@ class RightSideMenuContent extends StatelessWidget {
 
       _showSuccessSnackbar(context, '✅ Server data shown');
     } catch (e) {
+      print('dadada');
       _showErrorSnackbar(context, '❌ Error: $e');
     }
   }

@@ -1,16 +1,16 @@
 package uk.co.tenxglobal.tenxglobal_pos
 
+import android.content.Context
 import android.content.Intent
+import android.hardware.display.DisplayManager
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
-import android.hardware.display.DisplayManager
-import android.content.Context
-import android.os.Bundle 
 
 class MainActivity: FlutterActivity() {
     companion object {
@@ -20,6 +20,34 @@ class MainActivity: FlutterActivity() {
 
     private var isSunmiDevice = false
     private var debugMode = false
+    private var customerDisplayActivityStarted = false
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        Log.d(TAG, "════════════════════════════════════════")
+        Log.d(TAG, "🚀 MainActivity onCreate()")
+        
+        // Check which display this is running on
+        val displayId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            display?.displayId ?: 0
+        } else {
+            @Suppress("DEPRECATION")
+            windowManager.defaultDisplay.displayId
+        }
+        
+        Log.d(TAG, "📺 MainActivity running on Display ID: $displayId")
+        
+        // If somehow MainActivity launched on secondary display, close it
+        if (displayId != 0) {
+            Log.e(TAG, "❌ MainActivity on wrong display ($displayId), closing...")
+            finish()
+            return
+        }
+        
+        Log.d(TAG, "✅ MainActivity correctly on PRIMARY display")
+        Log.d(TAG, "════════════════════════════════════════")
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -30,10 +58,10 @@ class MainActivity: FlutterActivity() {
                  Build.MODEL.contains("D3 Pro", ignoreCase = true))
         
         Log.d(TAG, "════════════════════════════════════════")
-        Log.d(TAG, "Device Info:")
-        Log.d(TAG, "  Manufacturer: ${Build.MANUFACTURER}")
-        Log.d(TAG, "  Model: ${Build.MODEL}")
-        Log.d(TAG, "  Is Sunmi D3 Pro: $isSunmiDevice")
+        Log.d(TAG, "⚙️ Configuring Flutter Engine")
+        Log.d(TAG, "📱 Manufacturer: ${Build.MANUFACTURER}")
+        Log.d(TAG, "📱 Model: ${Build.MODEL}")
+        Log.d(TAG, "🔍 Is Sunmi D3 Pro: $isSunmiDevice")
         Log.d(TAG, "════════════════════════════════════════")
         
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
@@ -54,7 +82,7 @@ class MainActivity: FlutterActivity() {
                 }
                 "enableDebugMode" -> {
                     debugMode = call.argument<Boolean>("enabled") ?: false
-                    Log.d(TAG, "Debug mode ${if (debugMode) "ENABLED" else "DISABLED"}")
+                    Log.d(TAG, "🔧 Debug mode ${if (debugMode) "ENABLED" else "DISABLED"}")
                     result.success(mapOf(
                         "debugMode" to debugMode,
                         "isSunmiDevice" to isSunmiDevice,
@@ -73,79 +101,132 @@ class MainActivity: FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+        
+        // ✅ AUTO-LAUNCH CUSTOMER DISPLAY FROM NATIVE (not from Dart)
+        if (isSunmiDevice && !customerDisplayActivityStarted) {
+            Log.d(TAG, "🎯 Auto-launching customer display from native...")
+            Handler(Looper.getMainLooper()).postDelayed({
+                autoLaunchCustomerDisplay()
+            }, 2000) // Wait 2 seconds for everything to initialize
+        }
+    }
+
+    private fun autoLaunchCustomerDisplay() {
+        Log.d(TAG, "════════════════════════════════════════")
+        Log.d(TAG, "🚀 AUTO-LAUNCH Customer Display")
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+                val displays = displayManager.displays
+                
+                Log.d(TAG, "📺 Scanning displays...")
+                Log.d(TAG, "📺 Total displays found: ${displays.size}")
+                
+                displays.forEachIndexed { index, display ->
+                    Log.d(TAG, "  Display $index:")
+                    Log.d(TAG, "    - ID: ${display.displayId}")
+                    Log.d(TAG, "    - Name: ${display.name}")
+                    Log.d(TAG, "    - State: ${display.state}")
+                }
+                
+                // Find display ID 1 (customer display)
+                val customerDisplay = displays.firstOrNull { it.displayId == 1 }
+                
+                if (customerDisplay != null) {
+                    Log.d(TAG, "✅ FOUND Customer Display (ID: 1)")
+                    Log.d(TAG, "📱 Display Name: ${customerDisplay.name}")
+                    
+                    // Create intent for CustomerDisplayActivity
+                    val intent = Intent(this, CustomerDisplayActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK
+                        putExtra("display_data", HashMap<String, Any>(mapOf(
+                            "order" to mapOf(
+                                "customer" to "Welcome",
+                                "phoneNumber" to "",
+                                "orderType" to "Takeaway",
+                                "total" to 0.0,
+                                "subtotal" to 0.0,
+                                "tax" to 0.0,
+                                "serviceCharges" to 0.0,
+                                "deliveryCharges" to 0.0,
+                                "saleDiscount" to 0.0,
+                                "items" to emptyList<Any>()
+                            )
+                        )))
+                    }
+                    
+                    // Launch on customer display (ID: 1)
+                    val options = android.app.ActivityOptions.makeBasic()
+                    options.launchDisplayId = 1
+                    
+                    startActivity(intent, options.toBundle())
+                    customerDisplayActivityStarted = true
+                    
+                    Log.d(TAG, "✅ Customer display LAUNCHED on Display ID: 1")
+                } else {
+                    Log.e(TAG, "❌ Customer Display NOT FOUND!")
+                    Log.e(TAG, "❌ Only ${displays.size} display(s) detected")
+                    Log.e(TAG, "❌ Expected 2 displays for Sunmi D3 Pro")
+                }
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error auto-launching customer display: ${e.message}")
+                e.printStackTrace()
+            }
+        } else {
+            Log.e(TAG, "❌ Android version too old for multi-display (API ${Build.VERSION.SDK_INT})")
+        }
+        
+        Log.d(TAG, "════════════════════════════════════════")
     }
 
     private fun showCustomerDisplay(data: Map<String, Any>?) {
-        Log.d(TAG, "════════════════════════════════════════")
-        Log.d(TAG, "showCustomerDisplay called")
-        Log.d(TAG, "  Sunmi Device: $isSunmiDevice")
-        Log.d(TAG, "  Debug Mode: $debugMode")
+        if (customerDisplayActivityStarted) {
+            // Already running, just update it
+            updateCustomerDisplay(data)
+            return
+        }
+        
+        Log.d(TAG, "📤 Manual showCustomerDisplay called")
         
         if (isSunmiDevice || debugMode) {
             val intent = Intent(this, CustomerDisplayActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK
             data?.let {
                 intent.putExtra("display_data", HashMap(it))
             }
             
-            // ✅ CRITICAL FIX for Sunmi D3 Pro
             if (isSunmiDevice && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 try {
                     val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
                     val displays = displayManager.displays
-                    
-                    Log.d(TAG, "📺 Total displays found: ${displays.size}")
-                    displays.forEachIndexed { index, display ->
-                        Log.d(TAG, "  Display $index: ID=${display.displayId}, Name=${display.name}, State=${display.state}")
-                    }
-                    
-                    // Find secondary display (should be display ID 1 for Sunmi D3 Pro)
                     val secondaryDisplay = displays.firstOrNull { it.displayId == 1 }
                     
-                    if (secondaryDisplay != null && displays.size > 1) {
-                        Log.d(TAG, "✅ Secondary display found: ${secondaryDisplay.name} (ID: ${secondaryDisplay.displayId})")
-                        
-                        // Launch activity on secondary display
+                    if (secondaryDisplay != null) {
                         val options = android.app.ActivityOptions.makeBasic()
-                        options.launchDisplayId = secondaryDisplay.displayId
-                        
-                        launchCustomerDisplayWithRetry(intent, options.toBundle())
-                        
-                        Log.d(TAG, "✅ CustomerDisplayActivity launch initiated on SECONDARY display (ID: ${secondaryDisplay.displayId})")
+                        options.launchDisplayId = 1
+                        startActivity(intent, options.toBundle())
+                        customerDisplayActivityStarted = true
+                        Log.d(TAG, "✅ Customer display launched manually")
                     } else {
-                        // ⚠️ CRITICAL ERROR LOGGING
-                        Log.e(TAG, "═══════════════════════════════════════")
-                        Log.e(TAG, "❌ CRITICAL: No secondary display found!")
-                        Log.e(TAG, "❌ This device may not support dual screens")
-                        Log.e(TAG, "❌ Please check:")
-                        Log.e(TAG, "   1. Is this actually a Sunmi D3 Pro?")
-                        Log.e(TAG, "   2. Is the customer display physically connected?")
-                        Log.e(TAG, "   3. Are display settings enabled in device settings?")
-                        Log.e(TAG, "   4. Display count: ${displays.size}")
-                        Log.e(TAG, "═══════════════════════════════════════")
-                        
-                        // Fallback: Launch on primary display
-                        startActivity(intent)
-                        Log.w(TAG, "⚠️ Launched on PRIMARY display as fallback")
+                        Log.e(TAG, "❌ No secondary display found")
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "❌ Error launching on secondary display: $e")
-                    e.printStackTrace()
-                    startActivity(intent)
+                    Log.e(TAG, "❌ Error: ${e.message}")
                 }
-            } else {
-                // For non-Sunmi or debug mode on other devices
+            } else if (debugMode) {
                 startActivity(intent)
-                Log.d(TAG, "✅ Customer display launched normally (non-Sunmi or debug mode)")
+                customerDisplayActivityStarted = true
+                Log.d(TAG, "✅ Customer display launched (debug mode)")
             }
-        } else {
-            Log.d(TAG, "⚠️ Customer display not available (not Sunmi & debug mode off)")
         }
-        Log.d(TAG, "════════════════════════════════════════")
     }
 
     private fun hideCustomerDisplay() {
         sendBroadcast(Intent("HIDE_CUSTOMER_DISPLAY"))
-        Log.d(TAG, "Hide customer display broadcast sent")
+        customerDisplayActivityStarted = false
+        Log.d(TAG, "📢 Hide broadcast sent")
     }
 
     private fun updateCustomerDisplay(data: Map<String, Any>?) {
@@ -154,38 +235,6 @@ class MainActivity: FlutterActivity() {
             intent.putExtra("display_data", HashMap(it))
         }
         sendBroadcast(intent)
-        Log.d(TAG, "Update customer display broadcast sent")
-    }
-
-    // ✅ NEW: Retry mechanism for launching customer display
-    private fun launchCustomerDisplayWithRetry(intent: Intent, options: Bundle?, maxRetries: Int = 3) {
-        var retryCount = 0
-        
-        fun attemptLaunch() {
-            try {
-                startActivity(intent, options)
-                Log.d(TAG, "✅ Customer display launched successfully on attempt ${retryCount + 1}")
-            } catch (e: Exception) {
-                retryCount++
-                if (retryCount < maxRetries) {
-                    Log.w(TAG, "⚠️ Launch attempt $retryCount failed, retrying in 500ms...")
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        attemptLaunch()
-                    }, 500)
-                } else {
-                    Log.e(TAG, "❌ Failed to launch after $maxRetries attempts: $e")
-                    e.printStackTrace()
-                    // Final fallback: try normal launch
-                    try {
-                        startActivity(intent)
-                        Log.w(TAG, "⚠️ Fallback to normal launch succeeded")
-                    } catch (fallbackError: Exception) {
-                        Log.e(TAG, "❌ Even fallback launch failed: $fallbackError")
-                    }
-                }
-            }
-        }
-        
-        attemptLaunch()
+        Log.d(TAG, "📢 Update broadcast sent")
     }
 }

@@ -58,8 +58,13 @@ class CustomerDisplayActivity : FlutterActivity() {
         Log.d(TAG, "📱 Model: ${Build.MODEL}")
         
         if (displayId == 0) {
-            Log.e(TAG, "❌❌❌ WARNING: Activity is on PRIMARY display (ID: 0)")
+            Log.e(TAG, "❌❌❌ CRITICAL ERROR: Activity is on PRIMARY display (ID: 0)")
             Log.e(TAG, "❌❌❌ This should be on SECONDARY display (ID: 1)")
+            Log.e(TAG, "❌❌❌ CLOSING THIS ACTIVITY TO PREVENT CONFLICT")
+            
+            // ✅ Close this activity immediately if on wrong display
+            finish()
+            return
         } else if (displayId == 1) {
             Log.d(TAG, "✅✅✅ CORRECT: Activity is on SECONDARY display (ID: 1)")
         }
@@ -81,7 +86,7 @@ class CustomerDisplayActivity : FlutterActivity() {
             registerReceiver(updateReceiver, filter)
         }
         
-        // ✅ NEW: Send health check back to MainActivity
+        // Send health check back to MainActivity
         Handler(Looper.getMainLooper()).postDelayed({
             sendBroadcast(Intent("CUSTOMER_DISPLAY_READY").apply {
                 putExtra("displayId", displayId)
