@@ -1,6 +1,5 @@
 // ignore_for_file: avoid_print, prefer_final_fields
 
-import 'dart:async';
 import 'dart:io'; // ADD THIS LINE!
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,7 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:tenxglobal_pos/presentation/screens/right_side_menu_context.dart';
 import 'package:tenxglobal_pos/presentation/screens/customer_view/customer_view.dart';
-import 'package:tenxglobal_pos/core/services/customer_view_display_service/customer_display_service.dart';
+
 import 'package:tenxglobal_pos/core/services/server/app_info_service.dart';
 
 import 'package:tenxglobal_pos/core/services/server/server.dart';
@@ -115,24 +114,18 @@ class _MainShellState extends State<MainShell> {
         print("🌐 Local server initialization started");
       }
 
-      // ✅ For Sunmi D3 Pro: Auto-launch customer display on secondary screen
+      // ✅ REMOVED: Auto-launch now happens in MainActivity.kt native code
+      // Customer display will launch automatically from native side
+
       if (DeviceUtils.shouldAutoShowCustomerDisplay) {
         print("════════════════════════════════════════");
         print("✅ Sunmi D3 Pro detected");
-        print("📺 Auto-launching customer display on SECONDARY screen");
+        print("📺 Customer display will auto-launch from native");
         print("════════════════════════════════════════");
-
-        // Delay to ensure MainActivity is fully loaded
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          Future.delayed(const Duration(milliseconds: 1500), () {
-            _showCustomerDisplay();
-          });
-        });
       } else if (DeviceUtils.shouldUseCustomerDisplay) {
         print("⚠️ Debug mode enabled - Customer display available via menu");
       } else {
-        print(
-            "ℹ️ Customer display disabled (not Sunmi device & debug mode off)");
+        print("ℹ️ Customer display disabled");
       }
     });
   }
@@ -178,14 +171,6 @@ class _MainShellState extends State<MainShell> {
         setState(() => _currentIndex = 0);
       }
     }
-  }
-
-  void _showCustomerDisplay() {
-    CustomerDisplayService.show(
-      title: 'Welcome to Our Store',
-      total: _total,
-      items: _cartItems,
-    );
   }
 
   void _closeRightMenu() {
