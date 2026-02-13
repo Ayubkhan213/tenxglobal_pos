@@ -7,6 +7,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:tenxglobal_pos/core/services/customer_view_display_service/customer_display_service.dart';
 import 'package:tenxglobal_pos/presentation/screens/right_side_menu_context.dart';
 import 'package:tenxglobal_pos/presentation/screens/customer_view/customer_view.dart';
 
@@ -49,12 +50,6 @@ void main() async {
       child: const POSAgentApp(),
     ),
   );
-}
-
-// Entry point for customer display
-@pragma('vm:entry-point')
-void customerDisplayMain() {
-  runApp(const CustomerView());
 }
 
 class POSAgentApp extends StatelessWidget {
@@ -229,6 +224,10 @@ class _MainShellState extends State<MainShell> {
                   tween: Tween(begin: 1.0, end: 0.0),
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeInOut,
+                  onEnd: () {
+                    // ✅ Trigger test when menu opens
+                    CustomerDisplayService.showForTesting();
+                  },
                   builder: (context, value, child) {
                     return Transform.translate(
                       offset: Offset(
@@ -256,6 +255,42 @@ class _MainShellState extends State<MainShell> {
                   ),
                 ),
               ),
+
+            // Positioned(
+            //   right: 0,
+            //   top: 0,
+            //   bottom: 0,
+            //   child: TweenAnimationBuilder<double>(
+            //     tween: Tween(begin: 1.0, end: 0.0),
+            //     duration: const Duration(milliseconds: 300),
+            //     curve: Curves.easeInOut,
+            //     builder: (context, value, child) {
+            //       return Transform.translate(
+            //         offset: Offset(
+            //           MediaQuery.of(context).size.width * 0.4 * value,
+            //           0,
+            //         ),
+            //         child: child,
+            //       );
+            //     },
+            //     child: Container(
+            //       width: MediaQuery.of(context).size.width * 0.3,
+            //       decoration: BoxDecoration(
+            //         color: Colors.white,
+            //         boxShadow: [
+            //           BoxShadow(
+            //             color: Colors.black.withOpacity(0.3),
+            //             blurRadius: 20,
+            //             offset: const Offset(-5, 0),
+            //           ),
+            //         ],
+            //       ),
+            //       child: RightSideMenuContent(
+            //         onClose: _closeRightMenu,
+            //       ),
+            //     ),
+            //   ),
+            // ),
           ],
         ),
       ),
@@ -389,13 +424,6 @@ class POSWebViewScreenState extends State<POSWebViewScreen> {
     );
   }
 }
-
-
-
-
-
-
-
 
 // import 'dart:convert';
 // import 'dart:io';
@@ -1032,11 +1060,11 @@ class POSWebViewScreenState extends State<POSWebViewScreen> {
 //                     window.FLUTTER_SERVER_IP = "$_serverIp";
 //                     window.FLUTTER_SERVER_URL = "http://$_serverIp:8085";
 //                     window.FLUTTER_LOCAL_SERVER = "http://127.0.0.1:8085";
-                    
+
 //                     console.log("✅✅✅ Flutter Server IP Injected:", "$_serverIp");
 //                     console.log("✅✅✅ Use this URL:", window.FLUTTER_SERVER_URL);
 //                     console.log("✅✅✅ Or localhost:", window.FLUTTER_LOCAL_SERVER);
-                    
+
 //                     window.dispatchEvent(new CustomEvent('flutter-server-ready', {
 //                       detail: {
 //                         serverIp: "$_serverIp",
@@ -1077,3 +1105,67 @@ class POSWebViewScreenState extends State<POSWebViewScreen> {
 //     );
 //   }
 // }
+class RightSideMenuContent extends StatelessWidget {
+  final VoidCallback onClose;
+
+  const RightSideMenuContent({
+    Key? key,
+    required this.onClose,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Header
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: Colors.blue,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Settings',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: onClose,
+              ),
+            ],
+          ),
+        ),
+
+        // Test Customer Display Button
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              minimumSize: const Size(double.infinity, 50),
+            ),
+            onPressed: () {
+              CustomerDisplayService.showForTesting();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('🧪 Test data sent to customer display'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            child: const Text(
+              '🧪 Test Customer Display',
+              style: TextStyle(fontSize: 16),
+            ),
+          ),
+        ),
+
+        // Add more menu items here...
+      ],
+    );
+  }
+}

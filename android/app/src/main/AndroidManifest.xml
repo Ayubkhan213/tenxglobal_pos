@@ -6,8 +6,6 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
     
-    <uses-permission android:name="android.permission.USB_PERMISSION"/>
-    <uses-feature android:name="android.hardware.usb.host" android:required="false"/>
 
     <application
         android:label="10X Global"
@@ -15,7 +13,7 @@
         android:usesCleartextTraffic="true"
         android:icon="@mipmap/ic_launcher">
         
-        <!-- ✅ MAIN ACTIVITY - LAUNCHES FIRST ON PRIMARY DISPLAY -->
+        <!--  MAIN ACTIVITY - LAUNCHES FIRST ON PRIMARY DISPLAY -->
         <activity
             android:name=".MainActivity"
             android:exported="true"

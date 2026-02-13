@@ -79,33 +79,15 @@ class ServerServices {
             // Add this to your server_services.dart
 
             if (data['type'] == 'customer_view') {
-              print('════════════════════════════════════════════');
-              print('🖥️ CUSTOMER VIEW UPDATE FLOW');
-              print('════════════════════════════════════════════');
+              print('🖥️ CUSTOMER VIEW UPDATE');
 
-              final context = navigatorKey.currentContext;
+              // ✅ Just send to native - that's it!
+              CustomerDisplayService.updateFullData(data);
 
-              if (context != null) {
-                // 1️⃣ Update provider
-                Provider.of<CustomerProvider>(
-                  context,
-                  listen: false,
-                ).addOrderFromJson(data);
-
-                // 2️⃣ Send to customer display (ASYNC, no await)
-                CustomerDisplayService.updateFullData(data);
-
-                // ✅ 3️⃣ IMMEDIATELY RESPOND TO WEB
-                _jsonResponse(request, {
-                  'status': 'OK',
-                  'message': 'Customer view updated',
-                });
-              } else {
-                _jsonResponse(request, {
-                  'status': 'ERROR',
-                  'message': 'Navigator context not available',
-                });
-              }
+              _jsonResponse(request, {
+                'status': 'OK',
+                'message': 'Customer view updated',
+              });
 
               continue;
             }
