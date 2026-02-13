@@ -6,35 +6,55 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.WindowManager
-import io.flutter.embedding.android.FlutterActivity
-import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.plugin.common.MethodChannel
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import org.json.JSONArray
+import org.json.JSONObject
 
-class CustomerDisplayActivity : FlutterActivity() {
+class CustomerDisplayActivity : AppCompatActivity() {
     companion object {
         private const val TAG = "CustomerDisplayActivity"
-        private const val CHANNEL = "uk.co.tenxglobal.tenxglobal_pos/customer_display_receiver"
     }
 
-    private var methodChannel: MethodChannel? = null
+    // UI Elements
+    private lateinit var tvOrderType: TextView
+    private lateinit var tvCustomer: TextView
+    private lateinit var llItemsContainer: LinearLayout
+    private lateinit var tvEmptyMessage: TextView
+    private lateinit var tvSubtotal: TextView
+    private lateinit var tvTax: TextView
+    private lateinit var tvService: TextView
+    private lateinit var tvDiscount: TextView
+    private lateinit var tvTotal: TextView
+
+    // Debug UI Elements
+    private lateinit var tvDebugOrders: TextView
+    private lateinit var tvDebugItems: TextView
+    private lateinit var tvDebugStatus: TextView
+    private lateinit var tvDebugCustomer: TextView
+    private lateinit var tvDebugTotal: TextView
 
     private val updateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
-                "UPDATE_CUSTOMER_DISPLAY" -> {
-                    val data = intent.getSerializableExtra("display_data") as? HashMap<*, *>
-                    data?.let {
-                        Log.d(TAG, "📥 Received UPDATE_CUSTOMER_DISPLAY broadcast")
-                        methodChannel?.invokeMethod("updateCustomerDisplay", mapOf("data" to it))
+                "SUNMI_CUSTOMER_DISPLAY_UPDATE" -> {
+                    val jsonData = intent.getStringExtra("data")
+                    jsonData?.let {
+                        try {
+                            Log.d(TAG, "📥 Received update via Sunmi broadcast")
+                            Log.d(TAG, "Raw JSON: $it")
+                            val jsonObject = JSONObject(it)
+                            updateUI(jsonObject)
+                            Log.d(TAG, "✅ UI updated successfully")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "❌ Error parsing update: ${e.message}")
+                            e.printStackTrace()
+                        }
                     }
-                }
-                "HIDE_CUSTOMER_DISPLAY" -> {
-                    Log.d(TAG, "📥 Received HIDE_CUSTOMER_DISPLAY broadcast")
-                    finish()
                 }
             }
         }
@@ -43,40 +63,36 @@ class CustomerDisplayActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Log display information
-        val displayId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            display?.displayId ?: -1
-        } else {
-            @Suppress("DEPRECATION")
-            windowManager.defaultDisplay.displayId
-        }
-        
         Log.d(TAG, "════════════════════════════════════════")
-        Log.d(TAG, "✅ CustomerDisplayActivity CREATED")
-        Log.d(TAG, "📺 Running on Display ID: $displayId")
-        Log.d(TAG, "🏭 Manufacturer: ${Build.MANUFACTURER}")
-        Log.d(TAG, "📱 Model: ${Build.MODEL}")
-        
-        if (displayId == 0) {
-            Log.e(TAG, "❌❌❌ CRITICAL ERROR: Activity is on PRIMARY display (ID: 0)")
-            Log.e(TAG, "❌❌❌ This should be on SECONDARY display (ID: 1)")
-            Log.e(TAG, "❌❌❌ CLOSING THIS ACTIVITY TO PREVENT CONFLICT")
-            
-            // ✅ Close this activity immediately if on wrong display
-            finish()
-            return
-        } else if (displayId == 1) {
-            Log.d(TAG, "✅✅✅ CORRECT: Activity is on SECONDARY display (ID: 1)")
-        }
+        Log.d(TAG, "✅ CustomerDisplayActivity CREATED (Native XML)")
         Log.d(TAG, "════════════════════════════════════════")
+        
+        setContentView(R.layout.customer_display)
         
         // Keep screen on
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         
+        // Initialize views
+        tvOrderType = findViewById(R.id.tvOrderType)
+        tvCustomer = findViewById(R.id.tvCustomer)
+        llItemsContainer = findViewById(R.id.llItemsContainer)
+        tvEmptyMessage = findViewById(R.id.tvEmptyMessage)
+        tvSubtotal = findViewById(R.id.tvSubtotal)
+        tvTax = findViewById(R.id.tvTax)
+        tvService = findViewById(R.id.tvService)
+        tvDiscount = findViewById(R.id.tvDiscount)
+        tvTotal = findViewById(R.id.tvTotal)
+        
+        // Debug views
+        tvDebugOrders = findViewById(R.id.tvDebugOrders)
+        tvDebugItems = findViewById(R.id.tvDebugItems)
+        tvDebugStatus = findViewById(R.id.tvDebugStatus)
+        tvDebugCustomer = findViewById(R.id.tvDebugCustomer)
+        tvDebugTotal = findViewById(R.id.tvDebugTotal)
+        
         // Register broadcast receiver
         val filter = IntentFilter().apply {
-            addAction("UPDATE_CUSTOMER_DISPLAY")
-            addAction("HIDE_CUSTOMER_DISPLAY")
+            addAction("SUNMI_CUSTOMER_DISPLAY_UPDATE")
         }
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -86,64 +102,145 @@ class CustomerDisplayActivity : FlutterActivity() {
             registerReceiver(updateReceiver, filter)
         }
         
-        // Send health check back to MainActivity
-        Handler(Looper.getMainLooper()).postDelayed({
-            sendBroadcast(Intent("CUSTOMER_DISPLAY_READY").apply {
-                putExtra("displayId", displayId)
-            })
-            Log.d(TAG, "📡 Health check broadcast sent (Display ID: $displayId)")
-        }, 1000)
+        // Handle initial data
+        val initialData = intent.getSerializableExtra("display_data") as? HashMap<*, *>
+        initialData?.let {
+            Log.d(TAG, "📦 Processing initial data")
+            try {
+                val jsonObject = JSONObject(it as Map<*, *>)
+                updateUI(jsonObject)
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error processing initial data: $e")
+            }
+        }
+        
+        Log.d(TAG, "✅ CustomerDisplayActivity initialized")
     }
 
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
-        
-        Log.d(TAG, "⚙️ Configuring Flutter engine for customer display")
-        
-        methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
-        
-        // Send initial data after short delay to ensure Flutter is ready
-        val initialData = intent.getSerializableExtra("display_data") as? HashMap<*, *>
-        initialData?.let { data ->
-            Log.d(TAG, "📦 Initial data received: ${data.keys}")
-            
-            Handler(Looper.getMainLooper()).postDelayed({
-                try {
-                    Log.d(TAG, "📤 Sending initial data to Flutter UI")
-                    methodChannel?.invokeMethod("showCustomerDisplay", mapOf("data" to data))
-                    Log.d(TAG, "✅ Initial data sent successfully")
-                } catch (e: Exception) {
-                    Log.e(TAG, "❌ Error sending initial data: $e")
-                    e.printStackTrace()
+    private fun updateUI(data: JSONObject) {
+        runOnUiThread {
+            try {
+                Log.d(TAG, "═══════════════════════════════════════")
+                Log.d(TAG, "🎨 UPDATING UI")
+                
+                // Extract order object
+                val orderObj = if (data.has("order")) {
+                    data.getJSONObject("order")
+                } else {
+                    data
                 }
-            }, 500)
-        } ?: run {
-            Log.w(TAG, "⚠️ No initial data found in intent - showing empty display")
+                
+                // Update customer info
+                val customer = orderObj.optString("customer", "Walk-in Customer")
+                val orderType = orderObj.optString("orderType", "Takeaway")
+                
+                tvCustomer.text = customer
+                tvOrderType.text = orderType
+                
+                Log.d(TAG, "👤 Customer: $customer")
+                Log.d(TAG, "📦 Order Type: $orderType")
+                
+                // Update items
+                val itemsArray = orderObj.optJSONArray("items")
+                if (itemsArray != null && itemsArray.length() > 0) {
+                    tvEmptyMessage.visibility = android.view.View.GONE
+                    llItemsContainer.removeAllViews()
+                    
+                    Log.d(TAG, "🛒 Items count: ${itemsArray.length()}")
+                    
+                    for (i in 0 until itemsArray.length()) {
+                        val item = itemsArray.getJSONObject(i)
+                        addItemView(item)
+                    }
+                    
+                    // Update debug info
+                    tvDebugItems.text = "Items: ${itemsArray.length()}"
+                    tvDebugStatus.text = "✅ HAS DATA"
+                    tvDebugStatus.setTextColor(android.graphics.Color.parseColor("#00FF88"))
+                } else {
+                    tvEmptyMessage.visibility = android.view.View.VISIBLE
+                    llItemsContainer.removeAllViews()
+                    
+                    tvDebugItems.text = "Items: 0"
+                    tvDebugStatus.text = "❌ NO DATA"
+                    tvDebugStatus.setTextColor(android.graphics.Color.parseColor("#FF5555"))
+                }
+                
+                // Update totals
+                val subtotal = orderObj.optDouble("subtotal", 0.0)
+                val tax = orderObj.optDouble("tax", 0.0)
+                val service = orderObj.optDouble("serviceCharges", 0.0)
+                val discount = orderObj.optDouble("saleDiscount", 0.0)
+                val total = orderObj.optDouble("total", 0.0)
+                
+                tvSubtotal.text = "£%.2f".format(subtotal)
+                tvTax.text = "£%.2f".format(tax)
+                tvService.text = "£%.2f".format(service)
+                tvDiscount.text = "- £%.2f".format(discount)
+                tvTotal.text = "£%.2f".format(total)
+                
+                // Update debug info
+                tvDebugOrders.text = "Orders: 1"
+                tvDebugCustomer.text = customer
+                tvDebugTotal.text = "£%.2f".format(total)
+                
+                Log.d(TAG, "💰 Total: £%.2f".format(total))
+                Log.d(TAG, "✅ UI update complete")
+                Log.d(TAG, "═══════════════════════════════════════")
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error updating UI: ${e.message}")
+                e.printStackTrace()
+            }
         }
     }
 
-    override fun getDartEntrypointFunctionName(): String {
-        return "customerDisplayMain"
+    private fun addItemView(item: JSONObject) {
+        val itemView = LayoutInflater.from(this).inflate(
+            android.R.layout.simple_list_item_2, 
+            llItemsContainer, 
+            false
+        ) as LinearLayout
+        
+        val text1 = itemView.findViewById<TextView>(android.R.id.text1)
+        val text2 = itemView.findViewById<TextView>(android.R.id.text2)
+        
+        val title = item.optString("title", "Unknown Item")
+        val price = item.optDouble("price", 0.0)
+        val qty = item.optInt("qty", 1)
+        val variantName = item.optString("variantName", "")
+        
+        text1.text = "$title x$qty"
+        text1.textSize = 16f
+        text1.setTextColor(android.graphics.Color.BLACK)
+        
+        var subtitle = "£%.2f".format(price)
+        if (variantName.isNotEmpty()) {
+            subtitle = "$variantName - $subtitle"
+        }
+        text2.text = subtitle
+        text2.textSize = 14f
+        text2.setTextColor(android.graphics.Color.GRAY)
+        
+        llItemsContainer.addView(itemView)
+        
+        // Add divider
+        val divider = android.view.View(this)
+        divider.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            2
+        )
+        divider.setBackgroundColor(android.graphics.Color.parseColor("#EEEEEE"))
+        llItemsContainer.addView(divider)
     }
 
     override fun onDestroy() {
         super.onDestroy()
         try {
             unregisterReceiver(updateReceiver)
-            Log.d(TAG, "✅ Broadcast receiver unregistered")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error unregistering receiver: $e")
         }
         Log.d(TAG, "🔴 CustomerDisplayActivity destroyed")
-    }
-
-    override fun onResume() {
-        super.onResume()
-        Log.d(TAG, "▶️ CustomerDisplayActivity resumed")
-    }
-
-    override fun onPause() {
-        super.onPause()
-        Log.d(TAG, "⏸️ CustomerDisplayActivity paused")
     }
 }
